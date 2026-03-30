@@ -1,0 +1,132 @@
+import React from "react";
+import {
+  DEFAULT_COMMERCE_SETTINGS,
+  normalizeCommerceSettings,
+} from "@/lib/siteConfig";
+
+export const HeaderTitle = () => (
+  <div className="space-y-2">
+    <h1 className="text-4xl font-serif font-black text-ink uppercase tracking-tight">
+      Finalizar Compra
+    </h1>
+    <p className="text-honey-dark text-sm">
+      Completa tu pago con el metodo activo de la tienda para procesar el pedido.
+    </p>
+  </div>
+);
+
+export const BankDetailsCard = ({ commerceSettings, selectedMethod }) => {
+  const commerce = normalizeCommerceSettings(
+    commerceSettings || DEFAULT_COMMERCE_SETTINGS,
+  );
+  const activeMethods = (commerce.payment_methods || []).filter(Boolean);
+  const methodConfigs = commerce.payment_method_configs || {};
+  const methodsToRender = selectedMethod
+    ? [selectedMethod, ...activeMethods.filter((method) => method !== selectedMethod)]
+    : activeMethods;
+  const methodConfigCards = methodsToRender
+    .map((method) => {
+      const config = methodConfigs[method] || {};
+      const hasData =
+        config.owner ||
+        config.identifier ||
+        config.contact ||
+        config.extra ||
+        config.instructions;
+      if (!hasData) return null;
+
+      return (
+        <div
+          key={method}
+          className="rounded-xl border border-honey-light bg-white px-3 py-2 space-y-1"
+        >
+          <p className="text-[10px] font-black uppercase tracking-widest text-ink">
+            {method}
+          </p>
+          {config.owner ? (
+            <p className="text-[11px] text-honey-dark">
+              <span className="font-bold">Titular:</span> {config.owner}
+            </p>
+          ) : null}
+          {config.identifier ? (
+            <p className="text-[11px] text-honey-dark">
+              <span className="font-bold">Identificador:</span>{" "}
+              {config.identifier}
+            </p>
+          ) : null}
+          {config.contact ? (
+            <p className="text-[11px] text-honey-dark">
+              <span className="font-bold">Contacto:</span> {config.contact}
+            </p>
+          ) : null}
+          {config.extra ? (
+            <p className="text-[11px] text-honey-dark">
+              <span className="font-bold">Extra:</span> {config.extra}
+            </p>
+          ) : null}
+          {config.instructions ? (
+            <p className="text-[11px] text-honey-dark whitespace-pre-line leading-relaxed">
+              {config.instructions}
+            </p>
+          ) : null}
+        </div>
+      );
+    })
+    .filter(Boolean);
+
+  return (
+    <div className="bg-honey-light/20 border border-honey-light/50 p-6 rounded-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-honey-dark">
+          Formas de Pago
+        </h3>
+        <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[9px] font-bold rounded-full border border-green-100 uppercase">
+          Activo
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {methodsToRender.map((method) => (
+          <span
+            key={method}
+            className="px-2 py-1 bg-white text-ink border border-honey-light rounded-full text-[9px] font-bold uppercase tracking-widest"
+          >
+            {method}
+          </span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-y-4 gap-x-6">
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
+            Banco
+          </p>
+          <p className="text-xs font-black text-ink uppercase">
+            {commerce.bank_name}
+          </p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
+            Telefono
+          </p>
+          <p className="text-xs font-black text-ink">{commerce.bank_phone}</p>
+        </div>
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
+            RIF / Cedula
+          </p>
+          <p className="text-xs font-black text-ink">{commerce.bank_document}</p>
+        </div>
+      </div>
+
+      {methodConfigCards.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
+            Instrucciones por metodo
+          </p>
+          <div className="space-y-2">{methodConfigCards}</div>
+        </div>
+      )}
+    </div>
+  );
+};

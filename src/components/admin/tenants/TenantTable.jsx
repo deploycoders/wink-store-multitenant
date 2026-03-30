@@ -1,0 +1,205 @@
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Copy,
+  Check,
+  ExternalLink,
+  Power,
+  PowerOff,
+  Loader2,
+} from "lucide-react";
+import { useState } from "react";
+import { updateTenant } from "@/services/tenants";
+import Swal from "sweetalert2";
+
+export function TenantTable({ tenants, loading, onTenantUpdated }) {
+  const [copiedId, setCopiedId] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(null);
+
+  const toggleStatus = async (tenant) => {
+    const newStatus = tenant.status === "Active" ? "Inactive" : "Active";
+    setStatusLoading(tenant.tenant_id);
+
+    try {
+      const updated = await updateTenant(tenant.tenant_id, {
+        status: newStatus,
+      });
+      if (onTenantUpdated) onTenantUpdated(updated);
+
+      Swal.fire({
+        title: "Actualizado",
+        text: `La tienda ahora está ${newStatus === "Active" ? "Activa" : "Inactiva"}`,
+        icon: "success",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
+      });
+    } catch (error) {
+      Swal.fire("Error", "No se pudo cambiar el estado", "error");
+    } finally {
+      setStatusLoading(null);
+    }
+  };
+
+  const copyToClipboard = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-16 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!tenants || tenants.length === 0) {
+    return (
+      <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">
+        <p className="text-gray-500">No hay tiendas registradas.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border bg-white shadow-sm overflow-hidden">
+      <Table>
+        <TableHeader className="bg-gray-50">
+          <TableRow>
+            <TableHead className="font-semibold text-gray-700">
+              Tienda
+            </TableHead>
+            <TableHead className="font-semibold text-gray-700 text-center">
+              Plan
+            </TableHead>
+            <TableHead className="font-semibold text-gray-700 text-center">
+              Usuarios / Límite
+            </TableHead>
+            <TableHead className="font-semibold text-gray-700 text-center">
+              Estado
+            </TableHead>
+            <TableHead className="font-semibold text-gray-700 text-right">
+              Acciones
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {tenants.map((tenant) => (
+            <TableRow
+              key={tenant.tenant_id}
+              className="hover:bg-gray-50/50 transition-colors"
+            >
+              <TableCell className="font-medium">
+                <div className="flex flex-col">
+                  <span className="text-gray-900">{tenant.nombre}</span>
+                  <span className="text-xs text-gray-500 font-mono">
+                    {tenant.slug}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge
+                  variant={
+                    tenant.plan_type === "Gold"
+                      ? "default"
+                      : tenant.plan_type === "Silver"
+                        ? "secondary"
+                        : "outline"
+                  }
+                  className={
+                    tenant.plan_type === "Gold"
+                      ? "bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200"
+                      : tenant.plan_type === "Silver"
+                        ? "bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200"
+                        : "bg-orange-50 text-orange-700 hover:bg-orange-50 border-orange-100"
+                  }
+                >
+                  {tenant.plan_type}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-center">
+                <div className="flex flex-col items-center">
+                  <span className="text-sm font-medium">
+                    0 / {tenant.max_users || "—"}
+                  </span>
+                  <div className="w-16 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                    <div className="bg-blue-500 h-full w-0" />
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="text-center">
+                <Badge
+                  variant={tenant.status === "Active" ? "success" : "warning"}
+                  className={`rounded-full px-3 ${tenant.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                >
+                  {tenant.status === "Active" ? "Activo" : "Inactivo"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => toggleStatus(tenant)}
+                    disabled={statusLoading === tenant.tenant_id}
+                    className={`p-2 rounded-lg transition-colors ${
+                      tenant.status === "Active"
+                        ? "text-red-500 hover:bg-red-50"
+                        : "text-green-500 hover:bg-green-50"
+                    }`}
+                    title={
+                      tenant.status === "Active" ? "Inhabilitar" : "Habilitar"
+                    }
+                  >
+                    {statusLoading === tenant.tenant_id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : tenant.status === "Active" ? (
+                      <PowerOff className="h-4 w-4" />
+                    ) : (
+                      <Power className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() =>
+                      copyToClipboard(
+                        `https://${tenant.slug}.tu平台.com`,
+                        tenant.tenant_id,
+                      )
+                    }
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+                    title="Copiar URL"
+                  >
+                    {copiedId === tenant.tenant_id ? (
+                      <Check className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </button>
+                  <a
+                    href={`https://${tenant.slug}.tu平台.com`}
+                    target="_blank"
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
+                    title="Ver tienda"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}

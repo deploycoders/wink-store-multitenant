@@ -1,0 +1,79 @@
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+
+export function OrderSummary({
+  items,
+  subtotal,
+  total,
+  brandImageLabel = DEFAULT_SITE_NAME,
+}) {
+  return (
+    <div className="bg-paper border border-honey-light/50 rounded-[2.5rem] p-8 h-fit lg:sticky lg:top-10 shadow-sm">
+      <h3 className="text-lg font-serif font-bold text-ink uppercase tracking-tight mb-6">
+        Tu Pedido
+      </h3>
+      <div className="space-y-6 max-h-75 overflow-y-auto pr-2 custom-scrollbar">
+        {items.map((item) => (
+          <div key={`${item.id}-${item.variant}`} className="flex gap-4">
+            <div className="relative w-16 h-20 rounded-md overflow-hidden shrink-0 bg-secondary">
+              <Image
+                // Corregido: Accedemos directamente al string del array images[0]
+                src={
+                  item.images?.[0] ||
+                  item.image_url ||
+                  `https://placehold.co/400x600/png?text=${encodeURIComponent(
+                    brandImageLabel,
+                  )}`
+                }
+                alt={item.name || "Producto"}
+                fill
+                priority // Agregado para mejorar el LCP detectado en consola
+                sizes="64px"
+                className="object-cover"
+              />
+            </div>
+            <div className="flex-1 py-1">
+              {/* Ajustado a item.name según tu console.log */}
+              <h4 className="text-xs font-bold text-ink uppercase leading-tight mb-1">
+                {item.name}
+              </h4>
+              <p className="text-[10px] text-honey-dark font-medium mb-2">
+                Cant: {item.quantity} | Talla: {item.variant}
+              </p>
+              {Number(item.price_adjustment) > 0 && (
+                <p className="text-[10px] text-amber-700 font-semibold mb-2">
+                  +${Number(item.price_adjustment).toFixed(2)} por variante
+                </p>
+              )}
+              <p className="text-xs font-bold text-ink">
+                ${(item.price * item.quantity).toFixed(2)}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-8 pt-6 border-t border-honey-light/50 space-y-3 font-bold text-[10px] uppercase tracking-widest text-honey-dark">
+        <div className="flex justify-between">
+          <span>Subtotal</span>
+          <span className="text-ink">${subtotal.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Envío</span>
+          <span
+            className={cn(
+              "text-[9px]",
+              total >= 50 ? "text-green-600" : "text-amber-600",
+            )}
+          >
+            {total >= 50 ? "Gratis" : "Cobro en destino"}
+          </span>
+        </div>
+        <div className="pt-4 flex justify-between items-baseline text-ink border-t border-honey-light/10">
+          <span className="text-lg font-serif">Total</span>
+          <span className="text-2xl font-serif">${total.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
