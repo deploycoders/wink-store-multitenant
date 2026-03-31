@@ -11,6 +11,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function AdminDashboard() {
   const [metrics, setMetrics] = useState({
@@ -20,61 +21,110 @@ export default function AdminDashboard() {
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { tenant_id: tenantId } = useSiteConfig();
 
   useEffect(() => {
     async function fetchDashboardData() {
       const supabase = createClient();
+      const buildCustomerFromOrder = (order) => {
+        const embedded = order?.customer || order?.cliente || {};
+        return {
+          nombre_completo:
+            embedded?.nombre_completo ||
+            order?.nombre_cliente ||
+            order?.customer_name ||
+            "Desconocido",
+        };
+      };
+
+      const attachCustomers = async (orders) => {
+        const ids = [
+          ...new Set(orders.map((order) => order.cliente_id).filter(Boolean)),
+        ];
+        if (ids.length === 0) {
+          return orders.map((order) => ({
+            ...order,
+            clientes: buildCustomerFromOrder(order),
+          }));
+        }
+
+        const tables = ["clientes", "customers"];
+        let customerMap = new Map();
+
+        for (const tableName of tables) {
+          let query = supabase
+            .from(tableName)
+            .select("id, nombre_completo")
+            .in("id", ids);
+          if (tenantId) query = query.eq("tenant_id", tenantId);
+
+          const { data, error } = await query;
+          if (!error) {
+            customerMap = new Map((data || []).map((row) => [row.id, row]));
+            break;
+          }
+        }
+
+        return orders.map((order) => ({
+          ...order,
+          clientes:
+            customerMap.get(order.cliente_id) || buildCustomerFromOrder(order),
+        }));
+      };
 
       // 1. Ventas Hoy (estado Completado)
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
-      const { data: hoyOrders } = await supabase
+      let todayQuery = supabase
         .from("orders")
         .select("total")
         .eq("estado", "Completado")
         .gte("created_at", startOfToday.toISOString());
+      if (tenantId) todayQuery = todayQuery.eq("tenant_id", tenantId);
+      const { data: hoyOrders } = await todayQuery;
 
       const ventasHoy =
         hoyOrders?.reduce((acc, o) => acc + Number(o.total || 0), 0) || 0;
 
       // 2. Órdenes Totales
-      const { count: ordenesTotales } = await supabase
+      let totalOrdersQuery = supabase
         .from("orders")
         .select("*", { count: "exact", head: true });
+      if (tenantId)
+        totalOrdersQuery = totalOrdersQuery.eq("tenant_id", tenantId);
+      const { count: ordenesTotales } = await totalOrdersQuery;
 
       // 3. Stock Bajo (menor o igual a 5)
-      const { count: stockBajo } = await supabase
+      let lowStockQuery = supabase
         .from("products")
         .select("*", { count: "exact", head: true })
         .lte("stock", 5);
+      if (tenantId) lowStockQuery = lowStockQuery.eq("tenant_id", tenantId);
+      const { count: stockBajo } = await lowStockQuery;
 
       // 4. Últimas Órdenes
-      const { data: recientes } = await supabase
+      let recentQuery = supabase
         .from("orders")
         .select(
-          `
-          id,
-          total,
-          estado,
-          created_at,
-          clientes (nombre_completo)
-        `,
+          "id, total, estado, created_at, cliente_id, nombre_cliente, customer_name, customer",
         )
         .order("created_at", { ascending: false })
         .limit(5);
+      if (tenantId) recentQuery = recentQuery.eq("tenant_id", tenantId);
+      const { data: recientes } = await recentQuery;
 
       setMetrics({
         ventasHoy,
         ordenesTotales: ordenesTotales || 0,
         stockBajo: stockBajo || 0,
       });
-      setRecentOrders(recientes || []);
+      setRecentOrders(await attachCustomers(recientes || []));
       setLoading(false);
     }
 
     fetchDashboardData();
-  }, []);
+  }, [tenantId]);
 
   return (
     <div className="space-y-8 md:space-y-12 pb-10 transition-all duration-500">
@@ -188,7 +238,7 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
                         #{order.id.slice(-6).toUpperCase()}
                       </td>
-                      <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+                      <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
                         {order.clientes?.nombre_completo || "Desconocido"}
                       </td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">

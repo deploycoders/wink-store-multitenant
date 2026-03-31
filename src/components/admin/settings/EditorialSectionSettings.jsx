@@ -16,7 +16,7 @@ export default function EditorialSectionSettings({
   };
 
   return (
-    <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-5">
+    <div className="rounded-4xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-5">
       <div className="flex items-start gap-4">
         <div className="w-11 h-11 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-900 dark:text-white shrink-0">
           {icon}

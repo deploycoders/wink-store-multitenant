@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/auditLog";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
 
 export default function OrdersPage() {
@@ -20,30 +21,105 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [statusFilter, setStatusFilter] = useState("Todos los estados");
+  const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
+
+  const toOrderCode = (id) => String(id || "").slice(-6).toUpperCase();
+  const getErrorMessage = (error) =>
+    error?.message || error?.details || "Error desconocido";
+
+  const buildCustomerFromOrder = (order) => {
+    const embedded = order?.customer || order?.cliente || {};
+    return {
+      nombre_completo:
+        embedded?.nombre_completo ||
+        order?.nombre_cliente ||
+        order?.customer_name ||
+        "Desconocido",
+      telefono: embedded?.telefono || order?.telefono || "",
+      cedula: embedded?.cedula || order?.cedula || "",
+      email: embedded?.email || order?.email || "",
+    };
+  };
+
+  const loadCustomersByIds = async (ids) => {
+    if (!Array.isArray(ids) || ids.length === 0) return new Map();
+
+    const tables = ["clientes", "customers"];
+    let lastError = null;
+
+    for (const tableName of tables) {
+      let query = supabase
+        .from(tableName)
+        .select("id, nombre_completo, telefono, cedula, email");
+
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
+
+      query = query.in("id", ids);
+      const { data, error } = await query;
+
+      if (!error) {
+        return new Map((data || []).map((row) => [row.id, row]));
+      }
+
+      lastError = error;
+
+      if (
+        tenantId &&
+        typeof error.message === "string" &&
+        error.message.includes("tenant_id")
+      ) {
+        const retry = await supabase
+          .from(tableName)
+          .select("id, nombre_completo, telefono, cedula, email")
+          .in("id", ids);
+        if (!retry.error) {
+          return new Map((retry.data || []).map((row) => [row.id, row]));
+        }
+        lastError = retry.error;
+      }
+    }
+
+    if (lastError) {
+      console.warn(
+        "No se pudieron cargar datos de clientes relacionados:",
+        getErrorMessage(lastError),
+      );
+    }
+
+    return new Map();
+  };
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("orders")
-        .select(
-          `
-          *,
-          clientes (
-            nombre_completo,
-            telefono,
-            cedula,
-            email
-          )
-        `,
-        )
-        .order("created_at", { ascending: false });
+      let query = supabase.from("orders").select("*");
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
+      const { data, error } = await query.order("created_at", {
+        ascending: false,
+      });
 
       if (error) throw error;
-      setOrders(data || []);
+
+      const ordersData = data || [];
+      const customerIds = [
+        ...new Set(ordersData.map((order) => order.cliente_id).filter(Boolean)),
+      ];
+      const customersById = await loadCustomersByIds(customerIds);
+
+      const mergedOrders = ordersData.map((order) => ({
+        ...order,
+        clientes:
+          customersById.get(order.cliente_id) || buildCustomerFromOrder(order),
+      }));
+
+      setOrders(mergedOrders);
     } catch (error) {
-      console.error("Error cargando órdenes:", error.message);
+      console.error("Error cargando órdenes:", getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -55,7 +131,7 @@ export default function OrdersPage() {
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) setCurrentUser(data.user);
     });
-  }, []);
+  }, [tenantId]);
 
   const updateStatus = async (id, newStatus, reason = null) => {
     const updateData = { estado: newStatus };
@@ -64,10 +140,11 @@ export default function OrdersPage() {
     // Obtener la orden para enriquecer el log
     const orderRef = orders.find((o) => o.id === id);
 
-    const { error } = await supabase
-      .from("orders")
-      .update(updateData)
-      .eq("id", id);
+    let updateQuery = supabase.from("orders").update(updateData).eq("id", id);
+    if (tenantId) {
+      updateQuery = updateQuery.eq("tenant_id", tenantId);
+    }
+    const { error } = await updateQuery;
 
     if (!error) {
       // Registrar en bitácora
@@ -75,7 +152,7 @@ export default function OrdersPage() {
       await logAudit(supabase, {
         tipo: "orden",
         accion,
-        descripcion: `Orden #${id.slice(-6).toUpperCase()} marcada como "${newStatus}"${reason ? ` — Motivo: ${reason}` : ""}`,
+        descripcion: `Orden #${toOrderCode(id)} marcada como "${newStatus}"${reason ? ` — Motivo: ${reason}` : ""}`,
         usuario_id: currentUser?.id ?? null,
         usuario_nombre: currentUser?.email ?? "Admin",
         meta: {
@@ -146,7 +223,9 @@ export default function OrdersPage() {
   const filteredOrders = orders.filter((o) => {
     // Filtro por texto (ID o Nombre)
     const matchesSearch =
-      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(o.id || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
       o.clientes?.nombre_completo
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase());
@@ -240,7 +319,7 @@ export default function OrdersPage() {
                 >
                   <td className="px-6 py-4">
                     <span className="font-black text-slate-900 dark:text-white text-xs">
-                      #{order.id.slice(-6).toUpperCase()}
+                      #{toOrderCode(order.id)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -332,7 +411,7 @@ export default function OrdersPage() {
             <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-6">
               Detalles de la Orden{" "}
               <span className="text-slate-400 dark:text-slate-500">
-                #{selectedOrder.id.slice(-6).toUpperCase()}
+                #{toOrderCode(selectedOrder.id)}
               </span>
             </h2>
 

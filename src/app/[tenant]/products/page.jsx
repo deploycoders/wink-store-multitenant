@@ -23,11 +23,11 @@ export default async function ProductsPage({ params }) {
   // Obtener el ID del tenant a partir del slug
   const { data: tenantRow } = await supabase
     .from("tenants")
-    .select("id")
+    .select("tenant_id")
     .eq("slug", tenant)
     .single();
 
-  const tenantId = tenantRow?.id;
+  const tenantId = tenantRow?.tenant_id;
 
   // 2. Ejecutamos ambas peticiones en paralelo para mayor velocidad
   const [products, categories] = await Promise.all([

@@ -13,38 +13,123 @@ import { createClient } from "@/lib/supabase/client";
 import {
   formatWhatsappContactNumber,
 } from "@/lib/siteConfig";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
+
+  const getErrorMessage = (error) =>
+    error?.message || error?.details || "Error desconocido";
+
+  const buildCustomerFromOrder = (order, index = 0) => {
+    const embedded = order?.customer || order?.cliente || {};
+    const nombre =
+      embedded?.nombre_completo ||
+      order?.nombre_cliente ||
+      order?.customer_name ||
+      "Cliente sin nombre";
+    const telefono = embedded?.telefono || order?.telefono || "";
+    const cedula = embedded?.cedula || order?.cedula || "";
+    const email = embedded?.email || order?.email || "";
+    const fallbackKey = `${telefono || "sin-telefono"}-${cedula || "sin-cedula"}-${email || "sin-email"}-${index}`;
+
+    return {
+      id: order?.cliente_id || fallbackKey,
+      nombre_completo: nombre,
+      telefono,
+      cedula,
+      email,
+    };
+  };
+
+  const loadCustomersTable = async () => {
+    const tables = ["clientes", "customers"];
+    let lastError = null;
+
+    for (const tableName of tables) {
+      let query = supabase
+        .from(tableName)
+        .select("id, nombre_completo, cedula, telefono, email");
+
+      if (tenantId) {
+        query = query.eq("tenant_id", tenantId);
+      }
+
+      const { data, error } = await query.order("nombre_completo");
+      if (!error) return data || [];
+
+      lastError = error;
+
+      if (
+        tenantId &&
+        typeof error.message === "string" &&
+        error.message.includes("tenant_id")
+      ) {
+        const retry = await supabase
+          .from(tableName)
+          .select("id, nombre_completo, cedula, telefono, email")
+          .order("nombre_completo");
+        if (!retry.error) return retry.data || [];
+        lastError = retry.error;
+      }
+    }
+
+    if (lastError) {
+      console.warn(
+        "No se pudo cargar la tabla de clientes. Se usará fallback por órdenes:",
+        getErrorMessage(lastError),
+      );
+    }
+
+    return [];
+  };
 
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("clientes")
-        .select(
-          `
-          *,
-          orders (
-            id,
-            total,
-            estado,
-            created_at,
-            items
-          )
-        `,
-        )
-        .order("nombre_completo");
+      let ordersQuery = supabase
+        .from("orders")
+        .select("id, total, estado, created_at, items, cliente_id, tenant_id");
+      if (tenantId) {
+        ordersQuery = ordersQuery.eq("tenant_id", tenantId);
+      }
 
-      if (error) throw error;
-      setCustomers(data || []);
+      const { data: ordersData, error: ordersError } = await ordersQuery.order(
+        "created_at",
+        {
+          ascending: false,
+        },
+      );
+      if (ordersError) throw ordersError;
+
+      const orders = ordersData || [];
+      const customersFromTable = await loadCustomersTable();
+
+      if (customersFromTable.length > 0) {
+        const mapped = customersFromTable.map((customer) => ({
+          ...customer,
+          orders: orders.filter((order) => order.cliente_id === customer.id),
+        }));
+        setCustomers(mapped);
+      } else {
+        const grouped = new Map();
+        orders.forEach((order, index) => {
+          const customer = buildCustomerFromOrder(order, index);
+          if (!grouped.has(customer.id)) {
+            grouped.set(customer.id, { ...customer, orders: [] });
+          }
+          grouped.get(customer.id).orders.push(order);
+        });
+        setCustomers(Array.from(grouped.values()));
+      }
 
     } catch (error) {
-      console.error("Error cargando clientes:", error.message);
+      console.error("Error cargando clientes:", getErrorMessage(error));
     } finally {
       setLoading(false);
     }
@@ -52,7 +137,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [tenantId]);
 
   const filteredCustomers = customers.filter(
     (c) =>

@@ -11,17 +11,17 @@ export async function generateMetadata({ params }) {
   // Obtener el ID del tenant a partir del slug
   const { data: tenantRow } = await supabase
     .from("tenants")
-    .select("id")
+    .select("tenant_id")
     .eq("slug", tenant)
     .single();
 
-  const product = await getProductBySlug(slug, tenantRow?.id);
+  const product = await getProductBySlug(slug, tenantRow?.tenant_id);
 
   if (!product) {
     return { title: "Producto no encontrado" };
   }
 
-  const { site_name } = await getSiteConfig({ tenantId: tenantRow?.id });
+  const { site_name } = await getSiteConfig({ tenantId: tenantRow?.tenant_id });
   const brand = site_name || DEFAULT_SITE_NAME;
 
   return {
@@ -46,11 +46,11 @@ export default async function ProductPage({ params }) {
   // Obtener el ID del tenant a partir del slug
   const { data: tenantRow } = await supabase
     .from("tenants")
-    .select("id")
+    .select("tenant_id")
     .eq("slug", tenant)
     .single();
 
-  const tenantId = tenantRow?.id;
+  const tenantId = tenantRow?.tenant_id;
 
   const [product, allProducts] = await Promise.all([
     getProductBySlug(slug, tenantId),

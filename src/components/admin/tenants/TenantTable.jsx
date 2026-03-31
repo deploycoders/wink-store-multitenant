@@ -24,6 +24,14 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
   const [copiedId, setCopiedId] = useState(null);
   const [statusLoading, setStatusLoading] = useState(null);
 
+  const getTenantUrl = (slug) => {
+    const baseOrigin =
+      typeof window !== "undefined"
+        ? window.location.origin
+        : "http://localhost:3000";
+    return `${baseOrigin}/${slug}`;
+  };
+
   const toggleStatus = async (tenant) => {
     const newStatus = tenant.status === "Active" ? "Inactive" : "Active";
     setStatusLoading(tenant.tenant_id);
@@ -173,7 +181,7 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
                   <button
                     onClick={() =>
                       copyToClipboard(
-                        `https://${tenant.slug}.tu平台.com`,
+                        getTenantUrl(tenant.slug),
                         tenant.tenant_id,
                       )
                     }
@@ -187,7 +195,7 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
                     )}
                   </button>
                   <a
-                    href={`https://${tenant.slug}.tu平台.com`}
+                    href={getTenantUrl(tenant.slug)}
                     target="_blank"
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-blue-600"
                     title="Ver tienda"

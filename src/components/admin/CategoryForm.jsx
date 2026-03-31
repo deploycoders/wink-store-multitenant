@@ -1,19 +1,17 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Save, 
-  X, 
-  ChevronDown, 
-  Image as ImageIcon, 
-  Tag, 
-  Type, 
+import {
+  Save,
+  X,
+  Image as ImageIcon,
+  Tag,
+  Type,
   Link as LinkIcon,
   Loader2,
   Upload,
-  Trash2
+  Trash2,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { CLOUDINARY_CONFIG } from "./product-form/config";
 
 const generateSlug = (name) => {
@@ -31,14 +29,19 @@ const generateSlug = (name) => {
     .replace(/-+/g, "-");
 };
 
-export default function CategoryForm({ initialData = null, parentCategories = [], onSuccess, onCancel }) {
+export default function CategoryForm({
+  initialData = null,
+  parentCategories = [],
+  onSuccess,
+  onCancel,
+}) {
   const router = useRouter();
   const isEditing = !!initialData;
 
   const [form, setForm] = useState({
     name: initialData?.name || "",
     slug: initialData?.slug || "",
-    parent_id: initialData?.parent_id || "",
+    parent_ids: initialData?.parent_ids || (initialData?.parent_id ? [initialData.parent_id] : []),
     image_url: initialData?.image_url || "",
   });
 
@@ -48,10 +51,10 @@ export default function CategoryForm({ initialData = null, parentCategories = []
 
   const handleNameChange = (e) => {
     const { value } = e.target;
-    setForm((prev) => ({ 
-      ...prev, 
+    setForm((prev) => ({
+      ...prev,
       name: value,
-      slug: generateSlug(value)
+      slug: generateSlug(value),
     }));
   };
 
@@ -94,7 +97,7 @@ export default function CategoryForm({ initialData = null, parentCategories = []
       const payload = {
         name: form.name,
         slug: form.slug,
-        parent_id: form.parent_id || null,
+        parent_ids: form.parent_ids || [],
         image_url: form.image_url || null,
       };
 
@@ -176,31 +179,54 @@ export default function CategoryForm({ initialData = null, parentCategories = []
             />
           </div>
 
-          {/* Categoría Padre */}
+          {/* Categorías Padre (multi-relación) */}
           <div>
             <label className={labelClass}>
-              <Tag size={12} /> Tipo de Categoría
+              <Tag size={12} /> Categorías Padre
             </label>
-            <div className="relative">
-              <select
-                name="parent_id"
-                value={form.parent_id}
-                onChange={(e) => setForm(prev => ({ ...prev, parent_id: e.target.value }))}
-                className={`${inputClass} appearance-none pr-12`}
-              >
-                <option value="">RAÍZ (Categoría Principal)</option>
+            <div className="space-y-3 rounded-2xl border border-slate-100 dark:border-slate-700 p-4 bg-slate-50/60 dark:bg-slate-800/40">
+              <label className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <input
+                  type="checkbox"
+                  checked={form.parent_ids.length === 0}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      parent_ids: e.target.checked ? [] : prev.parent_ids,
+                    }))
+                  }
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                />
+                Categoría principal (sin padres)
+              </label>
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                 {parentCategories
                   .filter((c) => !initialData || c.id !== initialData.id)
-                  .map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      SUB DE: {cat.name.toUpperCase()}
-                    </option>
-                  ))}
-              </select>
-              <ChevronDown
-                size={20}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-              />
+                  .map((cat) => {
+                    const checked = form.parent_ids.includes(cat.id);
+                    return (
+                      <label
+                        key={cat.id}
+                        className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            setForm((prev) => ({
+                              ...prev,
+                              parent_ids: e.target.checked
+                                ? [...new Set([...(prev.parent_ids || []), cat.id])]
+                                : (prev.parent_ids || []).filter((id) => id !== cat.id),
+                            }))
+                          }
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                        />
+                        {cat.name}
+                      </label>
+                    );
+                  })}
+              </div>
             </div>
           </div>
         </div>
@@ -210,8 +236,8 @@ export default function CategoryForm({ initialData = null, parentCategories = []
           <label className={labelClass}>
             <ImageIcon size={12} /> Imagen de Portada
           </label>
-          
-          <div className="relative aspect-square w-full max-w-[200px] mx-auto group">
+
+          <div className="relative aspect-square w-full max-w-50 mx-auto group">
             <div className="w-full h-full rounded-[2.5rem] bg-slate-50 dark:bg-slate-900 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center overflow-hidden transition-all group-hover:border-slate-300 dark:group-hover:border-slate-600">
               {form.image_url ? (
                 <>
@@ -222,7 +248,9 @@ export default function CategoryForm({ initialData = null, parentCategories = []
                   />
                   <button
                     type="button"
-                    onClick={() => setForm(prev => ({ ...prev, image_url: "" }))}
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, image_url: "" }))
+                    }
                     className="absolute top-3 right-3 p-2 bg-red-500 text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all scale-90 group-hover:scale-100"
                   >
                     <Trash2 size={16} />
@@ -231,10 +259,16 @@ export default function CategoryForm({ initialData = null, parentCategories = []
               ) : (
                 <div className="flex flex-col items-center gap-2">
                   {uploading ? (
-                    <Loader2 className="animate-spin text-slate-400" size={32} />
+                    <Loader2
+                      className="animate-spin text-slate-400"
+                      size={32}
+                    />
                   ) : (
                     <>
-                      <Upload size={32} className="text-slate-200 dark:text-slate-800" />
+                      <Upload
+                        size={32}
+                        className="text-slate-200 dark:text-slate-800"
+                      />
                       <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest text-center px-4">
                         Subir Foto
                       </span>
@@ -254,6 +288,10 @@ export default function CategoryForm({ initialData = null, parentCategories = []
           </div>
           <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-tight">
             Se recomienda una imagen cuadrada 1:1
+          </p>
+          <p className="text-[8px] px-8 text-left text-amber-400 font-bold uppercase tracking-tight">
+            La imagen es opcional, pero ayuda a mejorar la apariencia de tu
+            tienda y la experiencia de tus clientes.
           </p>
         </div>
       </div>
@@ -283,4 +321,3 @@ export default function CategoryForm({ initialData = null, parentCategories = []
     </form>
   );
 }
-

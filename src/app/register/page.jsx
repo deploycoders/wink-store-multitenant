@@ -5,9 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { getInvitation } from "@/services/tenants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Store, User, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import Swal from "sweetalert2";
 
 function RegisterContent() {
@@ -80,9 +79,16 @@ function RegisterContent() {
 
       if (!response.ok) throw new Error(result.error || "Error al registrar");
 
+      const tenantName =
+        result?.tenant?.nombre ||
+        result?.tenant?.name ||
+        result?.tenant_name ||
+        invitation?.tenants?.name ||
+        "tu tienda";
+
       Swal.fire({
         title: "¡Bienvenido!",
-        text: `Tu cuenta para la tienda "${result.tenant_name}" ha sido creada con éxito.`,
+        text: `Tu cuenta para la tienda "${tenantName}" ha sido creada con éxito.`,
         icon: "success",
         confirmButtonColor: "#3b82f6",
       }).then(() => {
@@ -97,7 +103,7 @@ function RegisterContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
+      <div className="flex flex-col items-center justify-center min-h-100">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         <p className="text-gray-500 mt-4 text-sm">Validando invitación...</p>
       </div>
@@ -125,7 +131,7 @@ function RegisterContent() {
     <div className="w-full max-w-md">
       <div className="text-center mb-8">
         <Badge className="mb-4 bg-blue-50 text-blue-700 border-blue-100">
-          Invitación para {invitation.tenants?.name}
+          Invitación para {invitation?.tenants?.name}
         </Badge>
         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
           Crea tu Cuenta Administradora

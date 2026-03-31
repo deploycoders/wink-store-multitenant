@@ -10,6 +10,10 @@ export default function SiteSettingsFooter({
 }) {
   return (
     <div className="sticky bottom-0 bg-[#FBFBFB]/80 dark:bg-slate-950/80 backdrop-blur-md p-6 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-t-[2.5rem] z-10 -mx-6 -mb-6">
+      <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md text-center sm:text-left">
+        Acá puedes guardar los ajustes globales de tu sitio, si ya guardaste las
+        configuraciones por seccion, no sobreescribirá los cambios.
+      </p>
       <div>
         {status.message && (
           <div
@@ -28,7 +32,7 @@ export default function SiteSettingsFooter({
       <button
         onClick={onSave}
         disabled={loading || uploading}
-        className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-12 h-14 rounded-2xl hover:bg-black dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
+        className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-12 h-14 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
       >
         {loading ? (
           <Loader2 className="animate-spin" size={18} />

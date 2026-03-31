@@ -17,11 +17,11 @@ export default async function HomePage({ params }) {
   // Obtener el ID del tenant a partir del slug
   const { data: tenantRow } = await supabase
     .from("tenants")
-    .select("id")
+    .select("tenant_id")
     .eq("slug", tenant)
     .single();
 
-  const products = await getHomeProducts(tenantRow?.id);
+  const products = await getHomeProducts(tenantRow?.tenant_id);
   const baseUrl = `/${tenant}`;
 
   return (

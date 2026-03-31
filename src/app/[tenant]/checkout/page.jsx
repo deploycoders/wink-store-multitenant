@@ -15,10 +15,7 @@ import { PaymentFields } from "@/components/public/checkout/PaymentFields";
 import { OrderSummary } from "@/components/public/checkout/OrderSummary";
 import { SuccessInvoice } from "@/components/public/checkout/SuccessInvoice";
 import { ValidationWaitScreen } from "@/components/public/checkout/ValidationWaitScreen";
-import {
-  HeaderTitle,
-  BankDetailsCard,
-} from "@/components/public/checkout/UIElements";
+import { HeaderTitle } from "@/components/public/checkout/UIElements";
 import { processCheckoutOrder } from "@/app/actions/public/checkoutActions";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import {
@@ -228,22 +225,18 @@ ${orderDetails}
           transition={{ duration: 0.6 }}
         >
           {isWaiting && !isSuccess ? (
-            <ValidationWaitScreen 
-              orderId={orderId} 
+            <ValidationWaitScreen
+              orderId={orderId}
               whatsappNumber={whatsappNumber}
               onSuccess={() => {
                 setIsWaiting(false);
                 setIsSuccess(true);
-              }} 
+              }}
             />
           ) : !isSuccess ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               <div className="space-y-8">
                 <HeaderTitle />
-                <BankDetailsCard
-                  commerceSettings={commerce}
-                  selectedMethod={selectedPaymentMethod}
-                />
 
                 <section className="space-y-8">
                   <div className="space-y-4">
@@ -266,13 +259,14 @@ ${orderDetails}
                       setFormData={setFormData}
                       paymentMethods={activePaymentMethods}
                       selectedPaymentMethod={selectedPaymentMethod}
+                      commerceSettings={commerce}
                     />
                   </div>
                 </section>
 
                 <Button
                   onClick={handleVerifyPayment}
-                  className="w-full h-16 bg-ink text-paper hover:bg-ink/90 shadow-2xl shadow-ink/20 font-bold uppercase text-[11px] tracking-[0.2em] rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.98]"
+                  className="w-full h-16 bg-ink cursor-pointer text-paper hover:bg-ink/90 shadow-2xl shadow-ink/20 font-bold uppercase text-[11px] tracking-[0.2em] rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.98]"
                 >
                   Verificar Pago & Pedir por WhatsApp
                 </Button>
@@ -286,11 +280,11 @@ ${orderDetails}
               />
             </div>
           ) : (
-            <SuccessInvoice 
-              formData={formData} 
-              finalTotal={finalTotal} 
-              purchasedItems={purchasedItems} 
-              orderId={orderId} 
+            <SuccessInvoice
+              formData={formData}
+              finalTotal={finalTotal}
+              purchasedItems={purchasedItems}
+              orderId={orderId}
             />
           )}
         </motion.div>

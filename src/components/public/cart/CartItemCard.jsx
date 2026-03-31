@@ -1,8 +1,8 @@
 "use client";
 
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2 } from "lucide-react";
-import Image from "next/image";
 
 export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
   return (
@@ -15,7 +15,7 @@ export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
     >
       {/* IMAGEN PRODUCTO */}
       <div className="relative w-full sm:w-24 h-48 sm:h-32 bg-secondary rounded-2xl overflow-hidden shrink-0 border border-honey-light/30">
-        <Image
+        <AdaptiveImage
           src={item.images?.[0]?.url || item.images?.[0] || "/placeholder.jpg"}
           alt={item.name || item.title || "Producto"}
           fill

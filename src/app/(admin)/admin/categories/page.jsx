@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   Plus,
   Edit,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import DeleteCategoryButton from "@/components/admin/DeleteCategoryButton";
 import CategoryForm from "@/components/admin/CategoryForm";
-import { createClient } from "@/lib/supabase/client";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState([]);
@@ -24,19 +22,16 @@ export default function CategoriesPage() {
   const [modalMode, setModalMode] = useState("create");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [expandedCategories, setExpandedCategories] = useState({});
-  const supabase = createClient();
 
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*, subcategories:categories!parent_id(*)")
-        .is("parent_id", null)
-        .order("name", { ascending: true });
-
-      if (error) throw error;
-      setCategories(data || []);
+      const response = await fetch("/api/categories");
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "No se pudieron cargar categorías");
+      }
+      setCategories(result.data || []);
     } catch (error) {
       console.error("Error fetching categories:", error);
     } finally {
@@ -171,7 +166,7 @@ export default function CategoriesPage() {
                     </td>
                     <td className="px-6 py-4 hidden md:table-cell">
                       <span className="px-2 py-1 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest rounded-lg">
-                        {category.subcategories?.length || 0} HIJAS
+                        {category.subcategories?.length || 0} Subcategoria
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -258,7 +253,9 @@ export default function CategoriesPage() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
-                    {modalMode === "edit" ? "Editar Categoría" : "Nueva Categoría"}
+                    {modalMode === "edit"
+                      ? "Editar Categoría"
+                      : "Nueva Categoría"}
                   </h3>
                   <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold mt-1 uppercase tracking-[0.2em]">
                     Estructura y Clasificación de Productos

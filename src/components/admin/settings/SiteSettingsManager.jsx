@@ -26,12 +26,22 @@ import HeaderMenuSettings from "./HeaderMenuSettings";
 import PromoDividerSettings from "./PromoDividerSettings";
 import FooterSettings from "./FooterSettings";
 import CommerceSettings from "./CommerceSettings";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { Loader2, Save } from "lucide-react";
 
 const hasValueChanged = (currentValue, nextValue) =>
   JSON.stringify(currentValue) !== JSON.stringify(nextValue);
 
+const normalizeSlides = (value) => (Array.isArray(value) ? value : []);
+
 export default function SiteSettingsManager() {
   const {
+    tenant_id: tenantId,
     site_name: currentName,
     hero_slides: currentSlides,
     home_intro: currentHomeIntro,
@@ -45,7 +55,7 @@ export default function SiteSettingsManager() {
   const supabase = createClient();
 
   const [siteName, setSiteName] = useState(currentName || "");
-  const [slides, setSlides] = useState(currentSlides || []);
+  const [slides, setSlides] = useState(normalizeSlides(currentSlides));
   const [homeIntro, setHomeIntro] = useState(DEFAULT_HOME_INTRO);
   const [productsIntro, setProductsIntro] = useState(DEFAULT_PRODUCTS_INTRO);
   const [headerMenu, setHeaderMenu] = useState(DEFAULT_HEADER_MENU);
@@ -62,7 +72,7 @@ export default function SiteSettingsManager() {
 
   useEffect(() => {
     setSiteName(currentName);
-    setSlides(currentSlides);
+    setSlides(normalizeSlides(currentSlides));
     setHomeIntro({ ...DEFAULT_HOME_INTRO, ...(currentHomeIntro || {}) });
     setProductsIntro({
       ...DEFAULT_PRODUCTS_INTRO,
@@ -204,7 +214,10 @@ export default function SiteSettingsManager() {
       URL.revokeObjectURL(localPreviewUrl);
     } catch (error) {
       console.error(error);
-      setStatus({ type: "error", message: "Error al subir imagen del promo divider" });
+      setStatus({
+        type: "error",
+        message: "Error al subir imagen del promo divider",
+      });
     } finally {
       setUploading(false);
     }
@@ -233,16 +246,19 @@ export default function SiteSettingsManager() {
       .map(([key]) => key);
 
     try {
-      await updateSiteConfig({
-        site_name: siteName,
-        hero_slides: slides,
-        home_intro: homeIntro,
-        products_intro: productsIntro,
-        header_menu: headerMenu,
-        promo_divider: promoDivider,
-        footer_settings: footerSettings,
-        commerce_settings: commerceSettings,
-      });
+      await updateSiteConfig(
+        {
+          site_name: siteName,
+          hero_slides: slides,
+          home_intro: homeIntro,
+          products_intro: productsIntro,
+          header_menu: headerMenu,
+          promo_divider: promoDivider,
+          footer_settings: footerSettings,
+          commerce_settings: commerceSettings,
+        },
+        { tenantId },
+      );
 
       await logAudit(supabase, {
         tipo: "ajuste",
@@ -260,7 +276,8 @@ export default function SiteSettingsManager() {
           home_intro_title: homeIntro.title,
           products_intro_title: productsIntro.title,
           header_menu,
-          promo_divider_title: `${promoDivider.title_primary} ${promoDivider.title_secondary}`.trim(),
+          promo_divider_title:
+            `${promoDivider.title_primary} ${promoDivider.title_secondary}`.trim(),
           footer_description: footerSettings.description,
           commerce_settings: {
             whatsapp_number: commerceSettings.whatsapp_number,
@@ -291,46 +308,173 @@ export default function SiteSettingsManager() {
     }
   };
 
+  const getPayloadForSection = (section) => {
+    switch (section) {
+      case "general":
+        return { site_name: siteName, header_menu: headerMenu };
+      case "home":
+        return {
+          hero_slides: slides,
+          home_intro: homeIntro,
+          products_intro: productsIntro,
+          promo_divider: promoDivider,
+        };
+      case "footer":
+        return {
+          footer_settings: footerSettings,
+          commerce_settings: commerceSettings,
+        };
+      default:
+        return {};
+    }
+  };
+
+  const handleSaveSection = async (section) => {
+    const payload = getPayloadForSection(section);
+    if (!Object.keys(payload).length) return;
+
+    setLoading(true);
+    setStatus({ type: "", message: "" });
+
+    try {
+      await updateSiteConfig(payload, { tenantId });
+      await logAudit(supabase, {
+        tipo: "ajuste",
+        accion: "editar",
+        descripcion: `Sección ${section} guardada`,
+        usuario_id: currentUser?.id ?? null,
+        usuario_nombre: actorName,
+        meta: {
+          section: section,
+          payload,
+        },
+      });
+
+      setStatus({
+        type: "success",
+        message: `Sección ${section} guardada correctamente`,
+      });
+      refresh();
+      setTimeout(() => setStatus({ type: "", message: "" }), 3000);
+    } catch (err) {
+      console.error("DETALLE DEL ERROR:", {
+        message: err.message,
+        stack: err.stack,
+        errorCompleto: err,
+      });
+      setStatus({
+        type: "error",
+        message: err.message || "Error al guardar sección",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div className="space-y-10">
-      <SiteIdentitySettings
-        siteName={siteName}
-        onSiteNameChange={setSiteName}
-      />
+    <div className="space-y-6">
+      <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+        Configuración Web
+      </h2>
 
-      <HeaderMenuSettings
-        headerMenu={headerMenu}
-        onHeaderMenuChange={setHeaderMenu}
-      />
+      <Accordion type="single" collapsible className="space-y-4">
+        <AccordionItem value="general">
+          <AccordionTrigger>Identidad y navegación</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-6">
+              <SiteIdentitySettings
+                siteName={siteName}
+                onSiteNameChange={setSiteName}
+              />
 
-      <HeroSliderSettings
-        slides={slides}
-        onAddSlide={handleAddSlide}
-        onRemoveSlide={handleRemoveSlide}
-        onUpdateSlide={handleUpdateSlide}
-        onImageUpload={handleImageUpload}
-      />
+              <HeaderMenuSettings
+                headerMenu={headerMenu}
+                onHeaderMenuChange={setHeaderMenu}
+              />
 
-      <EditorialContentSettings
-        homeIntro={homeIntro}
-        onHomeIntroChange={setHomeIntro}
-        productsIntro={productsIntro}
-        onProductsIntroChange={setProductsIntro}
-      />
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSection("general")}
+                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 h-12 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
+                >
+                  <Save size={18} />
+                  Guardar sección
+                </button>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
 
-      <PromoDividerSettings
-        value={promoDivider}
-        onChange={setPromoDivider}
-        onImageUpload={handlePromoImageUpload}
-        uploading={uploading}
-      />
+        <AccordionItem value="home">
+          <AccordionTrigger>
+            Home, Hero y secciones principales
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-6">
+              <HeroSliderSettings
+                slides={slides}
+                onAddSlide={handleAddSlide}
+                onRemoveSlide={handleRemoveSlide}
+                onUpdateSlide={handleUpdateSlide}
+                onImageUpload={handleImageUpload}
+              />
 
-      <FooterSettings value={footerSettings} onChange={setFooterSettings} />
+              <EditorialContentSettings
+                homeIntro={homeIntro}
+                onHomeIntroChange={setHomeIntro}
+                productsIntro={productsIntro}
+                onProductsIntroChange={setProductsIntro}
+              />
 
-      <CommerceSettings
-        value={commerceSettings}
-        onChange={setCommerceSettings}
-      />
+              <PromoDividerSettings
+                value={promoDivider}
+                onChange={setPromoDivider}
+                onImageUpload={handlePromoImageUpload}
+                uploading={uploading}
+              />
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSection("home")}
+                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 h-12 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
+                >
+                  <Save size={18} />
+                  Guardar sección
+                </button>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="footer">
+          <AccordionTrigger>Footer y comercio/legal</AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-6">
+              <FooterSettings
+                value={footerSettings}
+                onChange={setFooterSettings}
+              />
+              <CommerceSettings
+                value={commerceSettings}
+                onChange={setCommerceSettings}
+              />
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleSaveSection("footer")}
+                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 h-12 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
+                >
+                  <Save size={18} />
+                  Guardar sección
+                </button>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <SiteSettingsFooter
         loading={loading}

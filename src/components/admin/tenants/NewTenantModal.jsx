@@ -39,7 +39,7 @@ export function NewTenantModal({ onTenantCreated }) {
 
       Swal.fire({
         title: "¡Éxito!",
-        text: `La tienda "${tenant.name}" ha sido creada.`,
+        text: `La tienda "${tenant.nombre || tenant.name || formData.name}" ha sido creada.`,
         icon: "success",
         confirmButtonColor: "#3b82f6",
       });
@@ -75,7 +75,7 @@ export function NewTenantModal({ onTenantCreated }) {
           Nueva Tienda
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-106.25">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-gray-900 leading-tight">
             Registrar Nueva Tienda
@@ -104,7 +104,7 @@ export function NewTenantModal({ onTenantCreated }) {
               </label>
               <div className="flex items-center">
                 <span className="bg-gray-50 border border-r-0 border-gray-300 px-3 py-2 text-sm text-gray-500 rounded-l-md">
-                  https://
+                  https://winkstore.com/
                 </span>
                 <Input
                   placeholder="mi-tienda"
@@ -115,9 +115,6 @@ export function NewTenantModal({ onTenantCreated }) {
                   required
                   className="rounded-l-none border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
-                <span className="bg-gray-50 border border-l-0 border-gray-300 px-3 py-2 text-sm text-gray-500 rounded-r-md">
-                  .tuplataforma.com
-                </span>
               </div>
             </div>
             <div className="space-y-2">

@@ -1,8 +1,7 @@
 "use client";
 import * as React from "react";
 import { ArrowRight } from "lucide-react";
-import Image from "next/image";
-import { motion } from "framer-motion"; // Importamos motion
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
@@ -14,11 +13,12 @@ import {
 import Autoplay from "embla-carousel-autoplay";
 import Link from "next/link";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function CollectionsSlider() {
   const { hero_slides, loading, tenant_slug } = useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
-  
+
   const plugin = React.useRef(
     Autoplay({ delay: 4000, stopOnInteraction: false }),
   );
@@ -66,7 +66,7 @@ export default function CollectionsSlider() {
             <CarouselItem key={slide.id} className="pl-0">
               {/* CAMBIO: Usamos lg:flex-row para que en tablets siga siendo vertical y no se rompa */}
               {/* Aumentamos h-auto a lg:h-[500px] para dar más presencia */}
-              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:min-h-[450px]">
+              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:min-h-112.5">
                 {/* IMAGEN */}
                 <div className="w-full lg:w-1/2 relative h-72 lg:h-auto bg-zinc-50 dark:bg-slate-800 overflow-hidden shrink-0">
                   <motion.div
@@ -75,7 +75,7 @@ export default function CollectionsSlider() {
                     transition={{ duration: 1.5, ease: "easeOut" }}
                     className="w-full h-full relative"
                   >
-                    <Image
+                    <AdaptiveImage
                       src={slide.image}
                       alt={slide.title}
                       fill
@@ -116,7 +116,10 @@ export default function CollectionsSlider() {
                       asChild
                       className="group px-8 lg:px-10 h-12 text-[10px] font-bold uppercase tracking-[0.2em] bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-900 dark:hover:bg-zinc-100 active:scale-[0.97] cursor-pointer transition-all duration-300 shadow-sm shrink-0 rounded-xl"
                     >
-                      <Link href={`${baseUrl}/products`} className="flex items-center">
+                      <Link
+                        href={`${baseUrl}/products`}
+                        className="flex items-center"
+                      >
                         Comprar Ahora
                         <ArrowRight className="ml-3 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                       </Link>

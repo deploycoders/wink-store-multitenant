@@ -2,7 +2,7 @@
 "use client";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { useRef } from "react";
-import Image from "next/image";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/context/SiteConfigContext";
@@ -89,7 +89,7 @@ export default function PromoDivider() {
         >
           <div className="absolute inset-0 bg-black/30 z-10" />{" "}
           {/* Oscurecedor extra */}
-          <Image
+          <AdaptiveImage
             src="/banner-image2.jpg"
             alt={`${brand} Collection`}
             fill

@@ -12,6 +12,8 @@ export default function HeroSliderSettings({
   onUpdateSlide,
   onImageUpload,
 }) {
+  const safeSlides = Array.isArray(slides) ? slides : [];
+
   return (
     <section className={sectionClassName}>
       <SettingsSectionHeader
@@ -21,7 +23,7 @@ export default function HeroSliderSettings({
         action={
           <button
             onClick={onAddSlide}
-            disabled={slides.length >= 3}
+            disabled={safeSlides.length >= 3}
             className="flex items-center gap-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 h-12 rounded-xl hover:bg-black dark:hover:bg-slate-200 transition-all font-black text-[10px] uppercase tracking-widest disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
           >
             <Plus size={16} /> AGREGAR SLIDE
@@ -30,12 +32,12 @@ export default function HeroSliderSettings({
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {slides.map((slide, index) => (
+        {safeSlides.map((slide, index) => (
           <HeroSlideCard
             key={slide.id}
             slide={slide}
             index={index}
-            totalSlides={slides.length}
+            totalSlides={safeSlides.length}
             onRemove={onRemoveSlide}
             onUpdate={onUpdateSlide}
             onImageUpload={onImageUpload}

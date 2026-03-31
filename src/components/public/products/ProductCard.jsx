@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+
 import Link from "next/link";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import QuickAddSheet from "@/components/public/products/QuickAddSheet";
 import { getOptimizedImage } from "@/lib/getOptimizedImage";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function ProductCard({ product }) {
   const { site_name, tenant_slug } = useSiteConfig();
@@ -43,9 +44,9 @@ export default function ProductCard({ product }) {
             </span>
           )}
 
-          <Image
+          <AdaptiveImage
             src={imageUrl}
-            alt={name || `Producto de ${brand}`} // Corregido: 'name' es el campo real
+            alt={name || `Producto de ${brand}`}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"

@@ -11,12 +11,13 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, Plus, Minus, Trash2, ArrowRight } from "lucide-react";
-import Image from "next/image";
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function MiniCart({ open, setOpen }) {
   const { items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
@@ -85,7 +86,7 @@ export default function MiniCart({ open, setOpen }) {
                 >
                   {/* Imagen - Usa el array de strings de Supabase */}
                   <div className="relative w-20 h-24 bg-secondary rounded-lg overflow-hidden shrink-0 border border-honey-light">
-                    <Image
+                    <AdaptiveImage
                       src={item.images?.[0] || "/placeholder.jpg"}
                       alt={item.name || "Producto"}
                       fill
@@ -128,7 +129,8 @@ export default function MiniCart({ open, setOpen }) {
                       </span>
                       {Number(item.price_adjustment) > 0 && (
                         <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                          +${Number(item.price_adjustment).toFixed(2)} por variante
+                          +${Number(item.price_adjustment).toFixed(2)} por
+                          variante
                         </p>
                       )}
                     </div>

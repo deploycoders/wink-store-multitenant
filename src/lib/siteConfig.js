@@ -150,6 +150,13 @@ export const normalizeFooterSettings = (footerSettings) => ({
   ...(footerSettings || {}),
 });
 
+export const normalizeHeroSlides = (heroSlides) => {
+  if (!Array.isArray(heroSlides) || heroSlides.length === 0) {
+    return returnDefaults().hero_slides;
+  }
+  return heroSlides;
+};
+
 export const normalizeCommerceSettings = (commerceSettings) => {
   const normalized = {
     ...DEFAULT_COMMERCE_SETTINGS,
@@ -166,10 +173,11 @@ export const normalizeCommerceSettings = (commerceSettings) => {
       ? normalized.payment_methods.filter((method) =>
           [
             "Pago Movil",
-            // "PayPal",
-            // "Zelle",
-            // "Binance",
-            // "Transferencia",
+            "Nequi",
+            "Zelle",
+            "PayPal",
+            "Binance",
+            "Transferencia",
           ].includes(method),
         )
       : DEFAULT_COMMERCE_SETTINGS.payment_methods,
@@ -202,6 +210,18 @@ export const normalizeCommerceSettings = (commerceSettings) => {
   };
 };
 
+const resolveLegacyFooterSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!legacy || typeof legacy !== "object") return null;
+  return legacy.footer_settings || legacy.footer || legacy;
+};
+
+const resolveLegacyCommerceSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!legacy || typeof legacy !== "object") return null;
+  return legacy.commerce_settings || legacy.commerce || legacy;
+};
+
 export const normalizeWhatsappNumber = (value) =>
   String(value || "").replace(/\D/g, "");
 
@@ -229,16 +249,27 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
   if (!activeTenantId && tenantSlug) {
     const { data: tenantRow } = await supabase
       .from("tenants")
-      .select("id")
+      .select("tenant_id")
       .eq("slug", tenantSlug)
-      .eq("is_active", true)
+      .eq("status", "Active")
       .maybeSingle();
-    activeTenantId = tenantRow?.id;
+    activeTenantId = tenantRow?.tenant_id;
+  }
+
+  // 1.1. Si seguimos sin ID, tomamos el primer tenant activo para admin
+  if (!activeTenantId) {
+    const { data: firstTenant } = await supabase
+      .from("tenants")
+      .select("tenant_id")
+      .eq("status", "Active")
+      .limit(1)
+      .maybeSingle();
+    activeTenantId = firstTenant?.tenant_id;
   }
 
   // 2. Si finalmente no hay ID, devolvemos los defaults
   if (!activeTenantId) {
-    return returnDefaults();
+    return returnDefaults(tenantId);
   }
 
   // 3. Usamos maybeSingle() para que si no hay datos, data sea null en lugar de lanzar error
@@ -261,7 +292,9 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
 
   // 5. Si hay datos, normalizamos
   return {
+    tenant_id: activeTenantId,
     ...data,
+    hero_slides: normalizeHeroSlides(data.hero_slides),
     home_intro: { ...DEFAULT_HOME_INTRO, ...(data.home_intro || {}) },
     products_intro: {
       ...DEFAULT_PRODUCTS_INTRO,
@@ -269,13 +302,18 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
     },
     header_menu: normalizeHeaderMenu(data.header_menu),
     promo_divider: normalizePromoDivider(data.promo_divider),
-    footer_settings: normalizeFooterSettings(data.footer_settings),
-    commerce_settings: normalizeCommerceSettings(data.commerce_settings),
+    footer_settings: normalizeFooterSettings(
+      data.footer_settings || resolveLegacyFooterSettings(data),
+    ),
+    commerce_settings: normalizeCommerceSettings(
+      data.commerce_settings || resolveLegacyCommerceSettings(data),
+    ),
   };
 };
 
 // Función auxiliar para no repetir código
-const returnDefaults = () => ({
+const returnDefaults = (tenantId = null) => ({
+  tenant_id: tenantId,
   site_name: DEFAULT_SITE_NAME,
   hero_slides: [
     {
@@ -296,18 +334,93 @@ const returnDefaults = () => ({
 
 export const updateSiteConfig = async (payload, { tenantId } = {}) => {
   const supabase = createClient();
-  let query = supabase
-    .from("site_settings")
-    .update({ ...payload, updated_at: new Date() });
 
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  } else {
-    query = query.eq("id", 1);
+  let finalTenantId = tenantId || payload?.tenant_id;
+
+  if (!finalTenantId) {
+    // Intentamos obtener un tenant activo de la tabla para admin/configuración general
+    const { data: firstTenant, error: tenantError } = await supabase
+      .from("tenants")
+      .select("tenant_id")
+      .eq("status", "Active")
+      .limit(1)
+      .maybeSingle();
+
+    if (tenantError) {
+      console.error(
+        "No se pudo resolver tenantId en updateSiteConfig:",
+        tenantError.message,
+      );
+      throw tenantError;
+    }
+
+    finalTenantId = firstTenant?.tenant_id;
   }
 
-  const { data, error } = await query.select().single();
+  if (!finalTenantId) {
+    throw new Error(
+      "No se proporcionó un tenantId válido para actualizar la configuración.",
+    );
+  }
 
-  if (error) throw error;
-  return data;
+  const { loading, refresh, tenant_slug, tenant_id, ...cleanPayload } = payload;
+
+  // Incluimos tenantId para asegurar consistencia de la fila en un solo campo
+  const rowPayload = {
+    ...cleanPayload,
+    tenant_id: finalTenantId,
+    updated_at: new Date(),
+  };
+
+  // Compatibilidad con esquemas legacy que usan una sola columna jsonb `footer_commerce`
+  // para guardar footer + comercio.
+  if (cleanPayload.footer_settings || cleanPayload.commerce_settings) {
+    rowPayload.footer_commerce = {
+      ...(cleanPayload.footer_settings
+        ? { footer_settings: cleanPayload.footer_settings }
+        : {}),
+      ...(cleanPayload.commerce_settings
+        ? { commerce_settings: cleanPayload.commerce_settings }
+        : {}),
+      ...(cleanPayload.footer_settings || {}),
+      ...(cleanPayload.commerce_settings || {}),
+    };
+  }
+
+  const extractMissingColumn = (errorMessage = "") => {
+    const match = errorMessage.match(/Could not find the '([^']+)' column/i);
+    return match?.[1] || null;
+  };
+
+  // Fallback genérico para esquemas parcialmente migrados:
+  // removemos columnas inexistentes y reintentamos.
+  const workingPayload = { ...rowPayload };
+  const maxAttempts = Object.keys(workingPayload).length + 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const { data, error } = await supabase
+      .from("site_settings")
+      .upsert(workingPayload, {
+        onConflict: "tenant_id", // Asegúrate que tenant_id sea PK o UNIQUE en la DB
+      })
+      .select()
+      .maybeSingle();
+
+    if (!error) return data;
+
+    const missingColumn = extractMissingColumn(error.message || "");
+    if (missingColumn && missingColumn in workingPayload) {
+      console.warn(
+        `site_settings no tiene la columna "${missingColumn}". Se omitirá en esta actualización.`,
+      );
+      delete workingPayload[missingColumn];
+      continue;
+    }
+
+    throw error;
+  }
+
+  throw new Error(
+    "No se pudo actualizar site_settings después de aplicar fallback por columnas faltantes.",
+  );
 };

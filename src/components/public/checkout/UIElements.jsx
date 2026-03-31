@@ -96,35 +96,21 @@ export const BankDetailsCard = ({ commerceSettings, selectedMethod }) => {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-y-4 gap-x-6">
-        <div className="space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
-            Banco
-          </p>
-          <p className="text-xs font-black text-ink uppercase">
-            {commerce.bank_name}
-          </p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
-            Telefono
-          </p>
-          <p className="text-xs font-black text-ink">{commerce.bank_phone}</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
-            RIF / Cedula
-          </p>
-          <p className="text-xs font-black text-ink">{commerce.bank_document}</p>
-        </div>
-      </div>
-
-      {methodConfigCards.length > 0 && (
+      {methodConfigCards.length > 0 ? (
         <div className="space-y-3">
           <p className="text-[9px] font-bold uppercase tracking-widest text-honey-dark/60">
-            Instrucciones por metodo
+            Instrucciones por método
           </p>
           <div className="space-y-2">{methodConfigCards}</div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-honey-light bg-white px-3 py-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-ink">
+            Sin datos de métodos configurados
+          </p>
+          <p className="text-[11px] text-honey-dark">
+            Configura tus métodos en el panel administrativo para mostrarlos aquí.
+          </p>
         </div>
       )}
     </div>

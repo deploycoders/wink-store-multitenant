@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { AlignLeft, AlertCircle, Trash2, Type, Upload } from "lucide-react";
 import { inputClassName, labelClassName } from "./siteSettingsStyles";
 
@@ -29,9 +29,9 @@ export default function HeroSlideCard({
       </div>
 
       <div className="relative aspect-video rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 group/img">
-        <Image
+        <AdaptiveImage
           src={slide.image}
-          alt="Preview"
+          alt={slide.title || "Preview"}
           fill
           className="object-cover"
           sizes="(max-width: 768px) 100vw, 33vw"

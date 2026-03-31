@@ -18,13 +18,30 @@ import {
   normalizeCommerceSettings,
   normalizeFooterSettings,
   normalizeHeaderMenu,
+  normalizeHeroSlides,
   normalizePromoDivider,
 } from "@/lib/siteConfig";
 import { createClient } from "@/lib/supabase/client";
 
 const SiteConfigContext = createContext();
 
-export function SiteConfigProvider({ children, tenantId = null, tenantSlug = null }) {
+const resolveLegacyFooterSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!legacy || typeof legacy !== "object") return null;
+  return legacy.footer_settings || legacy.footer || legacy;
+};
+
+const resolveLegacyCommerceSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!legacy || typeof legacy !== "object") return null;
+  return legacy.commerce_settings || legacy.commerce || legacy;
+};
+
+export function SiteConfigProvider({
+  children,
+  tenantId = null,
+  tenantSlug = null,
+}) {
   const [config, setConfig] = useState({
     tenant_id: tenantId,
     tenant_slug: tenantSlug,
@@ -42,10 +59,11 @@ export function SiteConfigProvider({ children, tenantId = null, tenantSlug = nul
   const fetchConfig = useCallback(async () => {
     try {
       const data = await getSiteConfig({ tenantId });
-      setConfig((prev) => ({ 
-        ...data, 
+      setConfig((prev) => ({
+        ...data,
+        hero_slides: normalizeHeroSlides(data.hero_slides),
         tenant_slug: prev.tenant_slug, // Preservamos el slug que viene de props
-        loading: false 
+        loading: false,
       }));
     } catch (error) {
       console.error("Context fetch error:", error);
@@ -69,12 +87,13 @@ export function SiteConfigProvider({ children, tenantId = null, tenantSlug = nul
           event: "UPDATE",
           schema: "public",
           table: "site_settings",
-          filter: tenantId ? `tenant_id=eq.${tenantId}` : "id=eq.1",
+          filter: tenantId ? `tenant_id=eq.${tenantId}` : "tenant_id=eq.1",
         },
         (payload) => {
           setConfig((prev) => ({
             ...payload.new,
             tenant_slug: prev.tenant_slug,
+            hero_slides: normalizeHeroSlides(payload.new.hero_slides),
             home_intro: {
               ...DEFAULT_HOME_INTRO,
               ...(payload.new.home_intro || {}),
@@ -85,9 +104,13 @@ export function SiteConfigProvider({ children, tenantId = null, tenantSlug = nul
             },
             header_menu: normalizeHeaderMenu(payload.new.header_menu),
             promo_divider: normalizePromoDivider(payload.new.promo_divider),
-            footer_settings: normalizeFooterSettings(payload.new.footer_settings),
+            footer_settings: normalizeFooterSettings(
+              payload.new.footer_settings ||
+                resolveLegacyFooterSettings(payload.new),
+            ),
             commerce_settings: normalizeCommerceSettings(
-              payload.new.commerce_settings,
+              payload.new.commerce_settings ||
+                resolveLegacyCommerceSettings(payload.new),
             ),
             loading: false,
           }));

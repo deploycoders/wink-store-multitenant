@@ -37,7 +37,12 @@ export async function createTenant(tenantData) {
     throw tenantError;
   }
 
-  // 2. Usamos 'tenant_id' porque así se llama tu llave primaria en la tabla
+  // 2. Opcional: crear settings base para el tenant nuevo
+  await supabase
+    .from("site_settings")
+    .insert([{ tenant_id: tenant.tenant_id }]);
+
+  // 3. Usamos 'tenant_id' porque así se llama tu llave primaria en la tabla
   const { data: invitation, error: invitationError } = await supabase
     .from("invitations")
     .insert([{ tenant_id: tenant.tenant_id }])

@@ -7,18 +7,46 @@ import {
   labelClassName,
   sectionClassName,
 } from "./siteSettingsStyles";
-
-const PAYMENT_OPTIONS = [
-  "Pago Movil",
-  // "PayPal",
-  // "Zelle",
-  // "Binance",
-  // "Transferencia",
-];
+import {
+  PAYMENT_METHOD_SCHEMAS,
+  PAYMENT_OPTIONS,
+} from "@/lib/paymentMethodSchemas";
 
 export default function CommerceSettings({ value, onChange }) {
   const handleFieldChange = (field, nextValue) => {
     onChange({ ...value, [field]: nextValue });
+  };
+
+  const isMethodActive = (method) =>
+    Array.isArray(value.payment_methods) &&
+    value.payment_methods.includes(method);
+
+  const togglePaymentMethod = (method) => {
+    const currentMethods = Array.isArray(value.payment_methods)
+      ? [...value.payment_methods]
+      : [];
+
+    const nextMethods = currentMethods.includes(method)
+      ? currentMethods.filter((item) => item !== method)
+      : [...currentMethods, method];
+
+    onChange({ ...value, payment_methods: nextMethods });
+  };
+
+  const updatePaymentMethodConfig = (method, field, nextValue) => {
+    const currentConfigs = value.payment_method_configs || {};
+    const methodConfig = currentConfigs[method] || {};
+
+    onChange({
+      ...value,
+      payment_method_configs: {
+        ...currentConfigs,
+        [method]: {
+          ...methodConfig,
+          [field]: nextValue,
+        },
+      },
+    });
   };
 
   const updateProductNotice = (index, nextValue) => {
@@ -58,58 +86,68 @@ export default function CommerceSettings({ value, onChange }) {
         <div className="space-y-3">
           <label className={labelClassName}>Metodos de pago activos</label>
           <div className="flex flex-wrap gap-2">
-            {PAYMENT_OPTIONS.map((method) => (
-              <button
-                key={method}
-                type="button"
-                className="px-4 h-10 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all bg-slate-900 text-white border-slate-900"
-              >
-                {method}
-              </button>
-            ))}
+            {PAYMENT_OPTIONS.map((method) => {
+              const active = isMethodActive(method);
+              return (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => togglePaymentMethod(method)}
+                  className={`px-4 h-10 rounded-full border text-[10px] font-black uppercase tracking-widest transition-all ${
+                    active
+                      ? "bg-slate-900 text-white border-slate-900"
+                      : "bg-white text-slate-600 border-slate-300"
+                  }`}
+                >
+                  {method}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        <div className="space-y-3">
-          <label className={labelClassName}>Formulario Pago Movil</label>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className={labelClassName}>
-                <Building2 size={10} /> Banco
-              </label>
-              <input
-                type="text"
-                value={value.bank_name}
-                onChange={(e) => handleFieldChange("bank_name", e.target.value)}
-                className={inputClassName}
-              />
+        {PAYMENT_OPTIONS.map((method) => {
+          if (!isMethodActive(method)) return null;
+
+          const methodConfig = value.payment_method_configs?.[method] || {};
+          const fields = PAYMENT_METHOD_SCHEMAS[method] || [];
+
+          return (
+            <div
+              key={method}
+              className="rounded-xl border border-slate-200 dark:border-slate-700 p-4 bg-slate-50 dark:bg-slate-900 space-y-3"
+            >
+              <p className="text-xs font-black uppercase tracking-widest">
+                {method}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {fields.map((field) => (
+                  <div key={field.field}>
+                    <label className={labelClassName}>{field.label}</label>
+                    <input
+                      type={field.type || "text"}
+                      value={methodConfig[field.field] || ""}
+                      onChange={(e) =>
+                        updatePaymentMethodConfig(
+                          method,
+                          field.field,
+                          e.target.value,
+                        )
+                      }
+                      className={inputClassName}
+                      placeholder={field.placeholder}
+                    />
+                    {field.hint ? (
+                      <p className="text-[10px] mt-1 text-slate-400">
+                        {field.hint}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div>
-              <label className={labelClassName}>
-                <Smartphone size={10} /> Telefono banco
-              </label>
-              <input
-                type="text"
-                value={value.bank_phone}
-                onChange={(e) => handleFieldChange("bank_phone", e.target.value)}
-                className={inputClassName}
-              />
-            </div>
-            <div>
-              <label className={labelClassName}>
-                <Building2 size={10} /> Documento bancario (CI/RIF)
-              </label>
-              <input
-                type="text"
-                value={value.bank_document}
-                onChange={(e) =>
-                  handleFieldChange("bank_document", e.target.value)
-                }
-                className={inputClassName}
-              />
-            </div>
-          </div>
-        </div>
+          );
+        })}
 
         {/* Formularios avanzados por método (PayPal/Zelle/Binance/etc.) */}
         {/* Se dejan comentados para activarlos en una actualización futura. */}

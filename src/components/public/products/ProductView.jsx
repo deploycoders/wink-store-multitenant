@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +19,7 @@ import {
   DEFAULT_SITE_NAME,
   normalizeCommerceSettings,
 } from "@/lib/siteConfig";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function ProductView({ product }) {
   const { site_name, commerce_settings, tenant_slug } = useSiteConfig();
@@ -28,7 +28,9 @@ export default function ProductView({ product }) {
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
-  const productNotices = (commerce.product_notices || []).filter(Boolean).slice(0, 3);
+  const productNotices = (commerce.product_notices || [])
+    .filter(Boolean)
+    .slice(0, 3);
   // Desestructuramos product_variants que es como viene de tu consulta en Supabase
   const {
     name,
@@ -104,7 +106,7 @@ export default function ProductView({ product }) {
                     : "border-transparent",
                 )}
               >
-                <Image
+                <AdaptiveImage
                   src={img}
                   alt={`${name} thumbnail ${index + 1}`}
                   fill
@@ -116,7 +118,7 @@ export default function ProductView({ product }) {
           </div>
 
           <div className="relative flex-1 aspect-3/4 bg-secondary rounded-2xl overflow-hidden shadow-md order-2 lg:order-0">
-            <Image
+            <AdaptiveImage
               src={productImages[selectedImage]}
               alt={name || `Producto de ${brand}`}
               fill
@@ -145,8 +147,8 @@ export default function ProductView({ product }) {
             </div>
             {priceAdjustment > 0 && (
               <p className="mt-1 text-xs font-medium text-amber-700">
-                Esta variante tiene un recargo de +${priceAdjustment.toFixed(2)} por{" "}
-                {selectedVariant?.name?.toLowerCase() || "atributo"}.
+                Esta variante tiene un recargo de +${priceAdjustment.toFixed(2)}{" "}
+                por {selectedVariant?.name?.toLowerCase() || "atributo"}.
               </p>
             )}
             {hasActiveOffer && (
@@ -248,7 +250,10 @@ export default function ProductView({ product }) {
           </Accordion>
 
           {productNotices.map((notice, index) => (
-            <p key={`${index}-${notice}`} className="text-xs text-muted-foreground italic">
+            <p
+              key={`${index}-${notice}`}
+              className="text-xs text-muted-foreground italic"
+            >
               {notice}
             </p>
           ))}

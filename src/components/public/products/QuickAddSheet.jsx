@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useCartStore } from "@/lib/useCartStore";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import { ShoppingBag, ArrowRight } from "lucide-react";
 import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
   const [selectedSize, setSelectedSize] = useState(null);
@@ -98,13 +98,13 @@ export default function QuickAddSheet({ product, open, onClose }) {
         {/* Vista previa del producto */}
         <div className="flex gap-5 mb-8">
           <div className="relative w-24 h-30 rounded-2xl overflow-hidden shrink-0 bg-secondary">
-            <Image
+            <AdaptiveImage
               src={imageUrl}
-              alt={`Imagen de ${name}`} // Corregido: alt property obligatoria
+              alt={`Imagen de ${name}`}
               fill
-              priority // Añadido para mejorar el LCP (ya que es un popup de acción rápida)
               className="object-cover"
               sizes="96px"
+              priority
             />
           </div>
           <div className="flex flex-col justify-center gap-1">
@@ -120,7 +120,9 @@ export default function QuickAddSheet({ product, open, onClose }) {
                   ${finalRegularPrice.toFixed(2)}
                 </p>
               )}
-              <p className="text-lg font-bold text-black">${finalPrice.toFixed(2)}</p>
+              <p className="text-lg font-bold text-black">
+                ${finalPrice.toFixed(2)}
+              </p>
             </div>
             {priceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">

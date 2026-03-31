@@ -1,8 +1,18 @@
 "use client";
 
-import { Facebook, Instagram, Twitter, Type } from "lucide-react";
+import {
+  AlertTriangle,
+  Facebook,
+  Instagram,
+  Twitter,
+  Type,
+} from "lucide-react";
 import SettingsSectionHeader from "./SettingsSectionHeader";
-import { inputClassName, labelClassName, sectionClassName } from "./siteSettingsStyles";
+import {
+  inputClassName,
+  labelClassName,
+  sectionClassName,
+} from "./siteSettingsStyles";
 
 export default function FooterSettings({ value, onChange }) {
   const handleFieldChange = (field, nextValue) => {
@@ -70,6 +80,14 @@ export default function FooterSettings({ value, onChange }) {
               placeholder="https://x.com/tu-cuenta"
             />
           </div>
+        </div>
+        <div className="flex items-start gap-2 mt-6 px-1 opacity-80">
+          <AlertTriangle className="text-amber-500 w-4 h-4 mt-0.5 shrink-0" />
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Las URLs que estén vacías{" "}
+            <span className="font-medium">no se mostrarán</span> en el pie de
+            página de tu tienda.
+          </p>
         </div>
       </div>
     </section>

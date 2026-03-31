@@ -12,6 +12,7 @@ import PricingStock from "./product-form/PricingStock";
 import MediaAndStatus from "./product-form/MediaAndStatus";
 import VariantManager from "./product-form/VariantManager";
 import { CLOUDINARY_CONFIG } from "./product-form/config";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 const ProductForm = ({
   show,
@@ -23,9 +24,10 @@ const ProductForm = ({
   const sanitizeVariants = (variants = []) =>
     variants.map((v) => ({
       ...v,
-      value: String(v.value || "").trim(),
-      stock_adjustment: Number(v.stock_adjustment) || 0,
-      price_adjustment: Number(v.price_adjustment) || 0,
+      name: String(v.name || v.attribute_name || "Talla").trim(),
+      value: String(v.value || v.attribute_value || "").trim(),
+      stock_adjustment: Number(v.stock_adjustment ?? v.stock_quantity) || 0,
+      price_adjustment: Number(v.price_adjustment ?? v.price_override) || 0,
     }));
 
   const calculateTotalStock = (variants = [], fallbackStock = 0) =>
@@ -38,6 +40,7 @@ const ProductForm = ({
   const [subcategories, setSubcategories] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [newImageFiles, setNewImageFiles] = useState([]); // [{ file, blobUrl }]
+  const { tenant_id: tenantId, tenant_slug: tenantSlug } = useSiteConfig();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -66,8 +69,11 @@ const ProductForm = ({
         const initialCategoryIds =
           editingProduct.product_categories?.map((pc) => pc.category_id) ||
           (editingProduct.category_id ? [editingProduct.category_id] : []);
+        const uniqueInitialCategoryIds = [
+          ...new Set(initialCategoryIds.filter(Boolean)),
+        ];
 
-        console.log("IDs de categorías iniciales:", initialCategoryIds);
+        console.log("IDs de categorías iniciales:", uniqueInitialCategoryIds);
 
         const initialVariants = sanitizeVariants(
           editingProduct.variants || editingProduct.product_variants || [],
@@ -79,9 +85,12 @@ const ProductForm = ({
           description: editingProduct.description || "",
           discount_price: editingProduct.discount_price || "",
           subcategory_id: editingProduct.subcategory_id || "",
-          category_ids: initialCategoryIds,
+          category_ids: uniqueInitialCategoryIds,
           variants: initialVariants,
-          stock: calculateTotalStock(initialVariants, editingProduct.stock || 0),
+          stock: calculateTotalStock(
+            initialVariants,
+            editingProduct.stock || 0,
+          ),
         });
       } else {
         resetForm();
@@ -92,13 +101,16 @@ const ProductForm = ({
   // Effect to handle subcategories when category_ids change or categories are loaded
   useEffect(() => {
     if (formData.category_ids?.length > 0 && categories.length > 0) {
-      // Por ahora tomamos las subcategorías de la primera categoría seleccionada
-      // o podrías mezclar todas. User pidió categorías, subcategorías quizás
-      // se mantengan asociadas a la "principal" o se junten.
-      const selectedCat = categories.find(
-        (c) => c.id === formData.category_ids[0],
+      const merged = categories
+        .filter((c) => formData.category_ids.includes(c.id))
+        .flatMap((c) => c.subcategories || []);
+
+      const uniqueById = Array.from(
+        new Map(merged.map((sub) => [sub.id, sub])).values(),
       );
-      setSubcategories(selectedCat?.subcategories || []);
+      setSubcategories(uniqueById);
+    } else {
+      setSubcategories([]);
     }
   }, [formData.category_ids, categories]);
 
@@ -193,11 +205,16 @@ const ProductForm = ({
 
     setUploading(true);
     try {
+      const safeSlug = String(
+        tenantSlug || `tenant-${tenantId || "general"}`,
+      ).replace(/[^a-zA-Z0-9_-]/g, "-");
+
       const uploadPromises = newImageFiles.map(async ({ file }) => {
         const data = new FormData();
         data.append("file", file);
         data.append("upload_preset", CLOUDINARY_CONFIG.uploadPreset);
         data.append("cloud_name", CLOUDINARY_CONFIG.cloudName);
+        data.append("folder", `tenants/${safeSlug}/products`);
 
         const resp = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
           method: "POST",
@@ -247,9 +264,13 @@ const ProductForm = ({
       // 5. Construir objeto final para enviar
       const finalFormData = {
         ...formData,
+        category_ids: [
+          ...new Set((formData.category_ids || []).filter(Boolean)),
+        ],
         images: finalImages,
         variants: cleanedVariants, // Enviamos variantes limpias
         stock: totalStock, // Enviamos el stock real calculado
+        tenant_id: tenantId || formData.tenant_id || null,
       };
 
       // Generar slug si no existe
@@ -395,14 +416,16 @@ const ProductForm = ({
               type="button"
               variant="ghost"
               onClick={onClose}
-              className="rounded-2xl px-8 h-12 text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:bg-white dark:hover:bg-slate-700 transition-all"
+              className="rounded-2xl px-8 h-12 cursor-pointer text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:bg-white dark:hover:bg-slate-700 transition-all"
             >
-              Cancelar y Salir
+              {/* Cambio dinámico del texto según readOnly */}
+              {readOnly ? "Cerrar" : "Cancelar y Salir"}
             </Button>
+
             {!readOnly && (
               <Button
                 disabled={loading || uploading}
-                className="bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-black dark:hover:bg-slate-200 text-white rounded-2xl px-10 h-14 font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none transition-all disabled:opacity-50 gap-3"
+                className="bg-slate-900 cursor-pointer dark:bg-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200 text-white rounded-2xl px-10 h-14 font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none transition-all disabled:opacity-50 gap-3"
               >
                 {loading ? (
                   <>

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ProductForm from "@/components/admin/ProductForm";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
 
 export default function ProductsPage() {
@@ -27,25 +28,51 @@ export default function ProductsPage() {
   const [statusFilter, setStatusFilter] = useState("Todos los estados");
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkLoading, setBulkLoading] = useState(false);
+  const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
+
+  const getErrorMessage = (error) =>
+    error?.message || error?.details || "Error desconocido";
 
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let queryWithRelations = supabase
         .from("products")
         .select(
           "*, product_categories(category_id, categories(name)), product_variants(*)",
-        )
-        .order("created_at", { ascending: false });
+        );
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
+      if (tenantId) {
+        queryWithRelations = queryWithRelations.eq("tenant_id", tenantId);
       }
-      setProducts(data || []);
+
+      const withRelations = await queryWithRelations.order("created_at", {
+        ascending: false,
+      });
+
+      if (!withRelations.error) {
+        setProducts(withRelations.data || []);
+        return;
+      }
+
+      console.warn(
+        "No se pudieron cargar relaciones de productos, se usa fallback:",
+        getErrorMessage(withRelations.error),
+      );
+
+      let fallbackQuery = supabase.from("products").select("*");
+      if (tenantId) {
+        fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+      }
+      const fallback = await fallbackQuery.order("created_at", {
+        ascending: false,
+      });
+      if (fallback.error) throw fallback.error;
+
+      setProducts(fallback.data || []);
     } catch (e) {
-      console.error(e);
+      console.error("Error cargando productos:", getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -53,7 +80,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [tenantId]);
 
   const filteredProducts = products.filter((p) => {
     // Filtro por nombre

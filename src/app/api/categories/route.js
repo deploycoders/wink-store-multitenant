@@ -1,26 +1,67 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolveTenantContext } from "@/lib/tenantContext";
+import {
+  buildCategoryTree,
+  normalizeParentIds,
+} from "@/lib/categoryRelations";
+
+const isMissingCategoryParentsTable = (error) =>
+  typeof error?.message === "string" &&
+  error.message.includes("category_parents");
 
 // GET /api/categories
-export async function GET() {
+export async function GET(request) {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*, subcategories:categories!parent_id(*)")
-    .is("parent_id", null)
-    .order("name", { ascending: true });
+  const tenantFromQuery = request.nextUrl.searchParams.get("tenant_id");
+  const { tenantId } = await resolveTenantContext(supabase, {
+    fallbackTenantId: tenantFromQuery,
+  });
+
+  let query = supabase.from("categories").select("*");
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId);
+  }
+
+  const { data: categories, error } = await query.order("name", {
+    ascending: true,
+  });
 
   if (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ success: true, data });
+
+  let links = [];
+  let linksQuery = supabase
+    .from("category_parents")
+    .select("parent_id, subcategory_id");
+
+  if (tenantId) {
+    linksQuery = linksQuery.eq("tenant_id", tenantId);
+  }
+
+  const { data: linkRows, error: linksError } = await linksQuery;
+  if (!linksError) {
+    links = linkRows || [];
+  } else if (!isMissingCategoryParentsTable(linksError)) {
+    return NextResponse.json(
+      { success: false, error: linksError.message },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    data: buildCategoryTree(categories || [], links),
+  });
 }
 
 // POST /api/categories
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, slug, parent_id, image_url } = body;
+    const { name, slug, parent_id, parent_ids, image_url, tenant_id: payloadTenantId } = body;
 
     if (!name || !slug) {
       return NextResponse.json(
@@ -30,9 +71,31 @@ export async function POST(request) {
     }
 
     const supabase = await createClient();
+    const { tenantId } = await resolveTenantContext(supabase, {
+      fallbackTenantId: payloadTenantId,
+    });
+
+    if (!tenantId) {
+      return NextResponse.json(
+        { success: false, error: "No se pudo resolver el tenant de la categoría" },
+        { status: 400 },
+      );
+    }
+
+    const normalizedParentIds = normalizeParentIds(parent_ids ?? parent_id);
+    const legacyParentId = normalizedParentIds[0] || null;
+
     const { data, error } = await supabase
       .from("categories")
-      .insert([{ name, slug, parent_id: parent_id || null, image_url: image_url || null }])
+      .insert([
+        {
+          name,
+          slug,
+          parent_id: legacyParentId,
+          image_url: image_url || null,
+          tenant_id: tenantId,
+        },
+      ])
       .select()
       .single();
 
@@ -40,6 +103,37 @@ export async function POST(request) {
       console.error("Supabase insert error:", error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    if (normalizedParentIds.length > 0) {
+      const relations = normalizedParentIds.map((parentId) => ({
+        parent_id: parentId,
+        subcategory_id: data.id,
+        tenant_id: tenantId,
+      }));
+
+      const { error: linkError } = await supabase
+        .from("category_parents")
+        .insert(relations);
+
+      if (linkError && isMissingCategoryParentsTable(linkError)) {
+        if (normalizedParentIds.length > 1) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Para usar múltiples padres por subcategoría debes crear la tabla category_parents.",
+            },
+            { status: 400 },
+          );
+        }
+      } else if (linkError) {
+        return NextResponse.json(
+          { success: false, error: linkError.message },
+          { status: 500 },
+        );
+      }
+    }
+
     return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (err) {
     console.error("API Error in POST /api/categories:", err);

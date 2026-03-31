@@ -92,7 +92,7 @@ export async function processCheckoutOrder(formData, items, total) {
 
       const { data: variantsData, error: variantsError } = await supabase
         .from("product_variants")
-        .select("id, value, stock_adjustment")
+        .select("id, attribute_value, stock_quantity")
         .eq("product_id", item.id);
 
       if (variantsError) {
@@ -113,7 +113,8 @@ export async function processCheckoutOrder(formData, items, total) {
 
         const matchedVariant = variantsData.find(
           (variant) =>
-            normalizeVariantValue(variant.value) === selectedVariantValue,
+            normalizeVariantValue(variant.attribute_value) ===
+            selectedVariantValue,
         );
 
         if (!matchedVariant) {
@@ -122,17 +123,17 @@ export async function processCheckoutOrder(formData, items, total) {
           );
         }
 
-        const currentVariantStock = Number(matchedVariant.stock_adjustment) || 0;
+        const currentVariantStock = Number(matchedVariant.stock_quantity) || 0;
         if (currentVariantStock < quantity) {
           throw new Error(
-            `Stock insuficiente en ${productData.name} (${matchedVariant.value}). Disponible: ${currentVariantStock}.`,
+            `Stock insuficiente en ${productData.name} (${matchedVariant.attribute_value}). Disponible: ${currentVariantStock}.`,
           );
         }
 
         const nextVariantStock = currentVariantStock - quantity;
         const { error: updateVariantError } = await supabase
           .from("product_variants")
-          .update({ stock_adjustment: nextVariantStock })
+          .update({ stock_quantity: nextVariantStock })
           .eq("id", matchedVariant.id);
 
         if (updateVariantError) {
@@ -146,7 +147,7 @@ export async function processCheckoutOrder(formData, items, total) {
             acc +
             (variant.id === matchedVariant.id
               ? nextVariantStock
-              : Number(variant.stock_adjustment) || 0),
+              : Number(variant.stock_quantity) || 0),
           0,
         );
 

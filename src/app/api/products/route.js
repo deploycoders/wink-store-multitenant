@@ -1,19 +1,74 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { resolveTenantContext } from "@/lib/tenantContext";
+
+const normalizeProductVariants = (variants = []) =>
+  (variants || []).map((variant) => ({
+    ...variant,
+    name: variant.name || variant.attribute_name || "",
+    value: variant.value || variant.attribute_value || "",
+    price_adjustment:
+      Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
+    stock_adjustment:
+      Number(variant.stock_adjustment ?? variant.stock_quantity ?? 0) || 0,
+  }));
+
+const mapProductForClient = (product) => ({
+  ...product,
+  product_variants: normalizeProductVariants(product.product_variants),
+});
+
+const mapVariantToDb = (variant, { tenantId, productId }) => ({
+  product_id: productId,
+  tenant_id: tenantId,
+  attribute_name: String(
+    variant.name || variant.attribute_name || "Variante",
+  ).trim(),
+  attribute_value: String(
+    variant.value || variant.attribute_value || "",
+  ).trim(),
+  price_override:
+    Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
+  stock_quantity:
+    Number(variant.stock_adjustment ?? variant.stock_quantity ?? 0) || 0,
+  sku: variant.sku || null,
+});
 
 // GET /api/products
-export async function GET() {
+export async function GET(request) {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("products")
-      .select("*, product_categories(category_id, categories(name)), product_variants(*)")
-      .order("created_at", { ascending: false });
+    const tenantFromQuery = request.nextUrl.searchParams.get("tenant_id");
+    const { tenantId } = await resolveTenantContext(supabase, {
+      fallbackTenantId: tenantFromQuery,
+    });
+
+    let query = supabase.from("products").select(`
+  *,
+  category:categories!category_id(id, name),
+  subcategory:categories!subcategory_id(id, name),
+  product_categories(category_id),
+  product_variants(*)
+`);
+
+    if (tenantId) {
+      query = query.eq("tenant_id", tenantId);
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: false,
+    });
 
     if (error) throw error;
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({
+      success: true,
+      data: (data || []).map(mapProductForClient),
+    });
   } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
@@ -21,31 +76,51 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { 
-      name, 
+    const {
+      name,
       short_description,
-      description, 
-      price, 
+      description,
+      price,
       discount_price,
-      stock, 
-      images, 
+      stock,
+      images,
       category_ids = [], // Array de categorías para la tabla pivot
       subcategory_id,
-      status, 
+      status,
       featured,
       slug,
-      variants = []
+      variants = [],
+      tenant_id: payloadTenantId,
     } = body;
+    const normalizedCategoryIds = [
+      ...new Set((category_ids || []).filter(Boolean)),
+    ];
 
-    if (!name || !price || category_ids.length === 0) {
+    if (!name || !price || normalizedCategoryIds.length === 0) {
       return NextResponse.json(
-        { success: false, error: "Nombre, precio y al menos una categoría son obligatorios" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Nombre, precio y al menos una categoría son obligatorios",
+        },
+        { status: 400 },
       );
     }
 
     const supabase = await createClient();
-    
+    const { tenantId } = await resolveTenantContext(supabase, {
+      fallbackTenantId: payloadTenantId,
+    });
+
+    if (!tenantId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No se pudo resolver el tenant para crear el producto.",
+        },
+        { status: 400 },
+      );
+    }
+
     // 1. Insertar el producto
     const { data: product, error: pError } = await supabase
       .from("products")
@@ -61,7 +136,15 @@ export async function POST(request) {
           subcategory_id: subcategory_id || null,
           status: status || "draft",
           featured: featured || false,
-          slug: slug || name.toLowerCase().replace(/ /g, "-").replace(/[^\w-]+/g, "")
+          slug:
+            slug ||
+            name
+              .toLowerCase()
+              .replace(/ /g, "-")
+              .replace(/[^\w-]+/g, ""),
+          category_id:
+            normalizedCategoryIds.length > 0 ? normalizedCategoryIds[0] : null,
+          tenant_id: tenantId,
         },
       ])
       .select()
@@ -71,38 +154,48 @@ export async function POST(request) {
     const productId = product.id;
 
     // 2. Insertar categorías en la tabla pivot (product_categories)
-    const finalCategoryIds = category_ids;
-    
-    if (finalCategoryIds.length > 0) {
-      const pcToInsert = finalCategoryIds.map(catId => ({
+    const uniqueCategoryIds = normalizedCategoryIds;
+
+    if (uniqueCategoryIds.length > 0) {
+      const pcToInsert = uniqueCategoryIds.map((catId) => ({
         product_id: productId,
-        category_id: catId
+        category_id: catId,
+        tenant_id: tenantId, // <--- No olvides el tenant_id aquí también
       }));
-      const { error: pcError } = await supabase.from("product_categories").insert(pcToInsert);
-      if (pcError) console.error("Error inserting product categories:", pcError);
+
+      const { error: pcError } = await supabase
+        .from("product_categories")
+        .insert(pcToInsert);
+
+      if (pcError) {
+        console.error("Error inserting product categories:", pcError);
+        // Opcional: throw pcError si quieres que la creación falle si no hay categorías
+      }
     }
 
     // 3. Insertar variantes si existen
     if (variants.length > 0) {
-      const variantsToInsert = variants.map(v => ({
-        product_id: productId,
-        name: v.name,
-        value: v.value,
-        price_adjustment: parseFloat(v.price_adjustment) || 0,
-        stock_adjustment: parseInt(v.stock_adjustment) || 0
-      }));
+      const variantsToInsert = variants
+        .map((v) => mapVariantToDb(v, { tenantId, productId }))
+        .filter((v) => v.attribute_value);
 
-      const { error: vError } = await supabase
-        .from("product_variants")
-        .insert(variantsToInsert);
+      if (variantsToInsert.length > 0) {
+        const { error: vError } = await supabase
+          .from("product_variants")
+          .insert(variantsToInsert);
 
-      if (vError) console.error("Error inserting variants:", vError);
-      // No lanzamos error para no fallar la creación del producto si solo fallan las variantes
+        if (vError) {
+          throw new Error(`Error guardando variantes: ${vError.message}`);
+        }
+      }
     }
 
     return NextResponse.json({ success: true, data: product }, { status: 201 });
   } catch (error) {
     console.error("Error creating product:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

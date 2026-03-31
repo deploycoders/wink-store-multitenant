@@ -1,6 +1,6 @@
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export function OrderSummary({
   items,
@@ -17,8 +17,7 @@ export function OrderSummary({
         {items.map((item) => (
           <div key={`${item.id}-${item.variant}`} className="flex gap-4">
             <div className="relative w-16 h-20 rounded-md overflow-hidden shrink-0 bg-secondary">
-              <Image
-                // Corregido: Accedemos directamente al string del array images[0]
+              <AdaptiveImage
                 src={
                   item.images?.[0] ||
                   item.image_url ||
