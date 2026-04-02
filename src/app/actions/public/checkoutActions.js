@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { logAudit } from "@/lib/auditLog";
 import { formatWhatsappContactNumber } from "@/lib/siteConfig";
 
@@ -9,57 +9,171 @@ const normalizeVariantValue = (value) =>
     .trim()
     .toLowerCase();
 
+const CUSTOMER_TABLE = "clientes";
+
+const getErrorMessage = (error) =>
+  error?.message || error?.details || "Error desconocido";
+
+const isNoRowsError = (error) => error?.code === "PGRST116";
+
+const isMissingTableError = (error) =>
+  error?.code === "PGRST205" ||
+  /Could not find the table/i.test(getErrorMessage(error));
+
+const getMissingColumnName = (error) => {
+  const message = getErrorMessage(error);
+  if (!message) return null;
+
+  const pgrstMatch = message.match(/Could not find the '([^']+)' column/i);
+  if (pgrstMatch?.[1]) return pgrstMatch[1];
+
+  const pgMatch = message.match(/column ["']?([^"'\s]+)["']? does not exist/i);
+  if (pgMatch?.[1]) return pgMatch[1];
+
+  return null;
+};
+
+const createAdminClient = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      "Falta configuración de Supabase para checkout (URL o SERVICE_ROLE_KEY).",
+    );
+  }
+
+  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+};
+
+const findExistingCustomer = async (supabase, idNumber, tenantId) =>
+  supabase
+    .from(CUSTOMER_TABLE)
+    .select("id")
+    .eq("cedula", idNumber)
+    .eq("tenant_id", tenantId)
+    .limit(1)
+    .single();
+
+const insertCustomer = async (supabase, payload) =>
+  supabase
+    .from(CUSTOMER_TABLE)
+    .insert([payload])
+    .select("id")
+    .single();
+
+const createOrderWithFallback = async (supabase, payload) => {
+  const orderPayload = { ...payload };
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("orders")
+      .insert([orderPayload])
+      .select("id")
+      .single();
+
+    if (!error) {
+      return { data, error: null, usedPayload: orderPayload };
+    }
+
+    const missingColumn = getMissingColumnName(error);
+    if (
+      missingColumn &&
+      Object.prototype.hasOwnProperty.call(orderPayload, missingColumn)
+    ) {
+      delete orderPayload[missingColumn];
+      continue;
+    }
+
+    return { data: null, error, usedPayload: orderPayload };
+  }
+};
+
 export async function processCheckoutOrder(formData, items, total) {
   try {
-    const supabase = await createClient();
+    const supabase = createAdminClient();
     const normalizedCustomerPhone = formatWhatsappContactNumber(
       formData.phone,
       "58",
     );
 
+    let tenantId = formData?.tenantId || null;
+    const tenantSlug = formData?.tenantSlug || null;
+
+    if (!tenantId && tenantSlug) {
+      const { data: tenantRow, error: tenantLookupError } = await supabase
+        .from("tenants")
+        .select("tenant_id")
+        .eq("slug", tenantSlug)
+        .single();
+
+      if (tenantLookupError) {
+        throw new Error(
+          `No se pudo resolver tenant por slug: ${getErrorMessage(tenantLookupError)}`,
+        );
+      }
+
+      tenantId = tenantRow?.tenant_id || null;
+    }
+
+    if (!tenantId) {
+      throw new Error("No se pudo resolver el tenant para registrar el pedido.");
+    }
+
+    const { data: tenantData, error: tenantError } = await supabase
+      .from("tenants")
+      .select("tenant_id, status")
+      .eq("tenant_id", tenantId)
+      .single();
+
+    if (tenantError || !tenantData) {
+      throw new Error(
+        `No se pudo validar el tenant del pedido: ${getErrorMessage(tenantError)}`,
+      );
+    }
+
+    if (String(tenantData.status || "").toLowerCase() !== "active") {
+      throw new Error("La tienda no está activa para procesar pedidos.");
+    }
+
     // 1. Buscar o Crear Cliente
     let clienteId = null;
     let isNewClient = false;
 
-    // Buscar cliente por cédula/RIF
-    const { data: existingCustomer, error: searchError } = await supabase
-      .from("clientes")
-      .select("id")
-      .eq("cedula", formData.idNumber)
-      .single();
+    const { data: existingCustomer, error: searchError } =
+      await findExistingCustomer(supabase, formData.idNumber, tenantId);
 
     if (existingCustomer) {
       clienteId = existingCustomer.id;
-    } else if (searchError && searchError.code === "PGRST116") {
-      // PGRST116 = No rows found → Crear nuevo cliente
-      const { data: newCustomer, error: insertCustomerError } = await supabase
-        .from("clientes")
-        .insert([
-          {
-            cedula: formData.idNumber,
-            nombre_completo: formData.name,
-            telefono: normalizedCustomerPhone,
-            email: formData.email,
-          },
-        ])
-        .select("id")
-        .single();
+    } else if (searchError && isNoRowsError(searchError)) {
+      const { data: newCustomer, error: insertCustomerError } =
+        await insertCustomer(supabase, {
+          tenant_id: tenantId,
+          cedula: formData.idNumber,
+          nombre_completo: formData.name,
+          telefono: normalizedCustomerPhone,
+          email: formData.email || null,
+        });
 
       if (insertCustomerError) {
         throw new Error(
-          `Error al crear cliente: ${insertCustomerError.message}`
+          `Error al crear cliente en ${CUSTOMER_TABLE}: ${getErrorMessage(insertCustomerError)}`,
         );
       }
+
       clienteId = newCustomer.id;
       isNewClient = true;
 
-      // Registrar nuevo cliente en bitácora
       await logAudit(supabase, {
         tipo: "cliente",
         accion: "crear",
         descripcion: `Nuevo cliente registrado: ${formData.name} (Cédula: ${formData.idNumber})`,
         usuario_nombre: "Sistema (Checkout)",
         meta: {
+          customer_table: CUSTOMER_TABLE,
+          tenant_id: tenantId,
           cedula: formData.idNumber,
           nombre: formData.name,
           telefono: formData.phone,
@@ -67,8 +181,14 @@ export async function processCheckoutOrder(formData, items, total) {
           email: formData.email,
         },
       });
-    } else {
-      throw new Error(`Error al buscar cliente: ${searchError.message}`);
+    } else if (searchError && isMissingTableError(searchError)) {
+      throw new Error(
+        "No se encontró la tabla public.clientes. Verifica que exista y esté en el schema cache.",
+      );
+    } else if (searchError) {
+      throw new Error(
+        `Error al buscar cliente en ${CUSTOMER_TABLE}: ${getErrorMessage(searchError)}`,
+      );
     }
 
     // 2. Validar y Descontar Stock (variante y global)
@@ -184,25 +304,21 @@ export async function processCheckoutOrder(formData, items, total) {
     }
 
     // 3. Crear la Orden (Venta)
-    const { data: newOrder, error: orderError } = await supabase
-      .from("orders")
-      .insert([
-        {
-          cliente_id: clienteId,
-          total: total,
-          referencia_pago: formData.reference,
-          notas: `Metodo de pago: ${formData.paymentMethod || "No especificado"}${
-            formData.notes ? ` | ${formData.notes}` : ""
-          }`,
-          items: items,
-          estado: "Pendiente",
-        },
-      ])
-      .select("id")
-      .single();
+    const orderPayload = {
+      tenant_id: tenantId,
+      total,
+      estado: "Pendiente",
+      cliente_nombre: formData.name,
+      ...(clienteId ? { cliente_id: clienteId } : {}),
+    };
+
+    const { data: newOrder, error: orderError } = await createOrderWithFallback(
+      supabase,
+      orderPayload,
+    );
 
     if (orderError) {
-      throw new Error(`Error al crear orden: ${orderError.message}`);
+      throw new Error(`Error al crear orden: ${getErrorMessage(orderError)}`);
     }
 
     // Registrar nueva venta en bitácora
@@ -222,7 +338,12 @@ export async function processCheckoutOrder(formData, items, total) {
       },
     });
 
-    return { success: true, orderId: newOrder.id };
+    const normalizedOrderId =
+      newOrder?.id !== undefined && newOrder?.id !== null
+        ? String(newOrder.id)
+        : null;
+
+    return { success: true, orderId: normalizedOrderId };
   } catch (error) {
     console.error("Error en processCheckoutOrder:", error);
     return { success: false, error: error.message };

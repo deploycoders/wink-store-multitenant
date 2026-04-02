@@ -104,7 +104,7 @@ export default function ProductFilters({
         >
           <button
             onClick={() => setActiveCategory("all")}
-            className={`whitespace-nowrap px-5 py-2.5 md:px-8 md:py-3 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all border ${
+            className={`whitespace-nowrap px-5 cursor-pointer py-2.5 md:px-8 md:py-3 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all border ${
               activeCategory === "all"
                 ? "bg-ink text-paper border-ink shadow-lg shadow-ink/20"
                 : "bg-paper text-honey-dark border-honey-light/50 hover:border-ink hover:text-ink"
@@ -116,7 +116,7 @@ export default function ProductFilters({
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`whitespace-nowrap px-5 py-2.5 md:px-8 md:py-3 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all border ${
+              className={`whitespace-nowrap cursor-pointer px-5 py-2.5 md:px-8 md:py-3 rounded-full text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all border ${
                 activeCategory === cat.id
                   ? "bg-ink text-paper border-ink shadow-lg shadow-ink/20"
                   : "bg-paper text-honey-dark border-honey-light/50 hover:border-ink hover:text-ink"
@@ -135,7 +135,7 @@ export default function ProductFilters({
             title="Anterior"
           >
             <ChevronLeft
-              className="w-4 h-4 md:w-[18px] md:h-[18px]"
+              className="w-4 h-4 md:w-4.5 md:h-4.5"
               strokeWidth={2}
             />
           </button>
@@ -146,7 +146,7 @@ export default function ProductFilters({
             title="Siguiente"
           >
             <ChevronRight
-              className="w-4 h-4 md:w-[18px] md:h-[18px]"
+              className="w-4 h-4 md:w-4.5 md:h-4.5"
               strokeWidth={2}
             />
           </button>

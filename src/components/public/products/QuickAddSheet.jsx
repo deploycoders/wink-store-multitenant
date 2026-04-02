@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/useCartStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,15 +20,15 @@ import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
-  const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
   const addItem = useCartStore((state) => state.addItem);
+  const router = useRouter();
   const { site_name, tenant_slug } = useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
 
   if (!product) return null;
 
-  // Ajuste de campos según tu base de datos (Supabase)
   const {
     name,
     price,
@@ -37,9 +38,26 @@ export default function QuickAddSheet({ product, open, onClose }) {
     product_variants,
     slug,
   } = product;
-  const selectedVariant = (product_variants || []).find(
-    (variant) => variant.value === selectedSize,
+
+  const normalizedVariants = useMemo(
+    () =>
+      (product_variants || []).map((variant) => ({
+        ...variant,
+        id: variant.id,
+        name: variant.name || variant.attribute_name || "Variante",
+        value: variant.value || variant.attribute_value || "",
+        price_adjustment:
+          Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
+        stock_adjustment:
+          variant.stock_adjustment ?? variant.stock_quantity ?? null,
+      })),
+    [product_variants],
   );
+
+  const selectedVariant = normalizedVariants.find(
+    (variant) => String(variant.id) === String(selectedVariantId),
+  );
+
   const regularPrice = Number(price) || 0;
   const offerPrice = Number(discount_price) || 0;
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
@@ -47,39 +65,71 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const priceAdjustment = Number(selectedVariant?.price_adjustment) || 0;
   const finalPrice = basePrice + priceAdjustment;
   const finalRegularPrice = regularPrice + priceAdjustment;
-
-  // Manejo de imagen desde el array de strings de Cloudinary
   const imageUrl = images?.[0] || "/placeholder.jpg";
 
-  // Ajuste de variantes: usamos product_variants que es lo que viene de tu tabla
-  const hasVariants = product_variants && product_variants.length > 0;
+  const hasVariants = normalizedVariants.length > 0;
+  const hasMultipleVariantTypes =
+    new Set(
+      normalizedVariants
+        .map((variant) => variant.name)
+        .filter(Boolean)
+        .map((value) => String(value).trim().toLowerCase()),
+    ).size > 1;
 
-  const handleAddToCart = () => {
-    if (hasVariants && !selectedSize) {
+  const selectorLabel = hasMultipleVariantTypes
+    ? "Seleccionar Variante"
+    : `Seleccionar ${normalizedVariants[0]?.name || "Variante"}`;
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedVariantId(null);
+    }
+  }, [open]);
+
+  const ensureVariantBeforeContinue = () => {
+    if (hasVariants && !selectedVariant) {
       Swal.fire({
         title: "¡Atención!",
-        text: "Selecciona una talla para poder continuar.",
+        text: "Selecciona una variante para poder continuar.",
         icon: "warning",
         confirmButtonColor: "#1A1A1A",
         background: "#FBF9F6",
         color: "#1A1A1A",
       });
-      return;
+      return false;
     }
 
-    addItem(product, 1, selectedSize, selectedVariant);
-    onClose();
-    setSelectedSize(null);
+    return true;
+  };
 
+  const handleAddToCart = () => {
+    if (!ensureVariantBeforeContinue()) return;
+
+    addItem(product, 1, selectedVariant?.value || null, selectedVariant);
+    onClose();
+    setSelectedVariantId(null);
     Swal.fire({
       icon: "success",
       title: "¡Añadido!",
-      text: `${name} ha sido añadido al carrito.`,
-      timer: 1500,
+      text: `${name} al carrito`,
+      toast: true,
+      position: "top-end", // La ubica en la esquina superior derecha
       showConfirmButton: false,
+      timer: 1500,
+      timerProgressBar: true,
       background: "#FBF9F6",
       color: "#1A1A1A",
+      iconColor: "#10b981",
     });
+  };
+
+  const handleBuyNow = () => {
+    if (!ensureVariantBeforeContinue()) return;
+
+    addItem(product, 1, selectedVariant?.value || null, selectedVariant);
+    onClose();
+    setSelectedVariantId(null);
+    router.push(`${baseUrl}/checkout`);
   };
 
   return (
@@ -91,11 +141,10 @@ export default function QuickAddSheet({ product, open, onClose }) {
         <SheetHeader className="mb-6">
           <SheetTitle className="sr-only">Añadir {name} al carrito</SheetTitle>
           <SheetDescription className="sr-only">
-            Selecciona talla y añade el producto al carrito
+            Selecciona variante y añade el producto al carrito
           </SheetDescription>
         </SheetHeader>
 
-        {/* Vista previa del producto */}
         <div className="flex gap-5 mb-8">
           <div className="relative w-24 h-30 rounded-2xl overflow-hidden shrink-0 bg-secondary">
             <AdaptiveImage
@@ -107,6 +156,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
               priority
             />
           </div>
+
           <div className="flex flex-col justify-center gap-1">
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
               {brand}
@@ -114,6 +164,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
             <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink">
               {name || "Producto sin nombre"}
             </h2>
+
             <div className="flex items-end gap-2">
               {hasActiveOffer && (
                 <p className="text-[11px] font-semibold text-red-500 line-through">
@@ -124,17 +175,20 @@ export default function QuickAddSheet({ product, open, onClose }) {
                 ${finalPrice.toFixed(2)}
               </p>
             </div>
+
             {priceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">
                 +${priceAdjustment.toFixed(2)} por{" "}
                 {selectedVariant?.name?.toLowerCase() || "atributo"}.
               </p>
             )}
+
             {hasActiveOffer && (
               <p className="text-[10px] text-red-500 font-semibold uppercase tracking-wide">
                 Oferta activa
               </p>
             )}
+
             {short_description && (
               <p className="text-[11px] text-gray-500 italic line-clamp-2">
                 {short_description}
@@ -143,42 +197,70 @@ export default function QuickAddSheet({ product, open, onClose }) {
           </div>
         </div>
 
-        {/* Selector de Talla (product_variants) */}
         {hasVariants && (
           <div className="mb-8">
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark mb-3">
-              Seleccionar Talla
+              {selectorLabel}
             </p>
             <div className="flex flex-wrap gap-2">
-              {product_variants.map((v) => (
-                <Button
-                  key={v.id}
-                  variant="ghost"
-                  type="button"
-                  onClick={() => setSelectedSize(v.value)}
-                  className={cn(
-                    "min-w-14 h-11 rounded-md cursor-pointer uppercase transition-all duration-200 border",
-                    selectedSize === v.value
-                      ? "bg-ink text-paper border-ink shadow-md"
-                      : "bg-transparent text-ink border-honey-light/50 hover:border-ink",
-                  )}
-                >
-                  {v.value}
-                </Button>
-              ))}
+              {normalizedVariants.map((variant) => {
+                const hasStockValue =
+                  variant.stock_adjustment !== null &&
+                  variant.stock_adjustment !== undefined;
+                const stockValue = Number(variant.stock_adjustment) || 0;
+                const isOutOfStock = hasStockValue && stockValue <= 0;
+
+                return (
+                  <Button
+                    key={variant.id}
+                    variant="ghost"
+                    type="button"
+                    disabled={isOutOfStock}
+                    onClick={() => setSelectedVariantId(variant.id)}
+                    className={cn(
+                      "min-w-14 h-11 cursor-pointer rounded-md uppercase transition-all duration-200 border disabled:cursor-not-allowed",
+                      String(selectedVariantId) === String(variant.id)
+                        ? "bg-ink text-paper border-ink shadow-md"
+                        : "bg-transparent text-ink border-honey-light/50 hover:border-ink",
+                      isOutOfStock && "opacity-35 line-through",
+                    )}
+                  >
+                    {hasMultipleVariantTypes
+                      ? `${variant.name}: ${variant.value}`
+                      : variant.value}
+                  </Button>
+                );
+              })}
             </div>
+            {!selectedVariant && (
+              <p className="mt-3 text-[10px] font-semibold text-amber-700">
+                Debes seleccionar una variante antes de agregar al carrito.
+              </p>
+            )}
           </div>
         )}
 
-        {/* Acciones */}
         <div className="flex flex-col gap-3">
-          <Button
-            onClick={handleAddToCart}
-            className="w-full h-13 bg-ink text-paper hover:bg-ink/90 font-bold uppercase text-[11px] tracking-[0.2em] shadow-lg"
-          >
-            <ShoppingBag size={16} className="mr-2" />
-            Añadir al Carrito
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              onClick={handleAddToCart}
+              disabled={hasVariants && !selectedVariant}
+              className="h-13 bg-ink cursor-pointer text-paper hover:bg-ink/90 font-bold uppercase text-[10px] tracking-[0.16em] shadow-lg"
+            >
+              <ShoppingBag size={16} className="mr-2" />
+              Añadir
+            </Button>
+
+            <Button
+              onClick={handleBuyNow}
+              disabled={hasVariants && !selectedVariant}
+              variant="outline"
+              className="h-13 cursor-pointer border-ink text-ink hover:bg-ink hover:text-paper font-bold uppercase text-[10px] tracking-[0.16em]"
+            >
+              Comprar Ya
+            </Button>
+          </div>
+
           <Button
             asChild
             variant="ghost"

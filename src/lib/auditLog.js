@@ -51,6 +51,15 @@ export async function logAudit(supabase, payload) {
       },
     ]);
     if (error) {
+      const message = error?.message || "";
+      const missingTable =
+        error?.code === "PGRST205" ||
+        /Could not find the table 'public\.bitacora'/i.test(message);
+
+      if (missingTable) {
+        return;
+      }
+
       console.warn("[auditLog] Error saving audit entry:", error.message);
     }
   } catch (err) {

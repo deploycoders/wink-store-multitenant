@@ -15,6 +15,30 @@
   --ink: #3a3939;
 }
 
+/* Asegura que los bordes de los SVG sean visibles y animables */
+@layer base {
+  svg path {
+    stroke-render: geometricPrecision;
+  }
+}
+
+/* Opcional: una animación de brillo sutil para el logo completo */
+@keyframes logo-shimmer {
+  0% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.8;
+  }
+}
+
+.animate-logo-pulse {
+  animation: logo-shimmer 2s infinite ease-in-out;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -97,6 +121,45 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), sans-serif;
+}
+
+.invoice-only-print {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: Letter portrait;
+    margin: 8mm;
+  }
+
+  .invoice-print-mode header,
+  .invoice-print-mode footer {
+    display: none !important;
+  }
+
+  .invoice-print-mode main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+
+  .invoice-no-print {
+    display: none !important;
+  }
+
+  .invoice-only-print {
+    display: block !important;
+  }
+
+  .invoice-sheet {
+    width: 100%;
+    max-width: 190mm;
+    margin: 0 auto;
+    min-height: 263mm;
+    box-shadow: none !important;
+  }
 }
 
 /* Ocultar scrollbar pero mantener funcionalidad */

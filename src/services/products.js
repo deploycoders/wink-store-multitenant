@@ -32,6 +32,7 @@ export async function getProducts(tenantId = null) {
     .select(
       `
     *,
+    product_variants(*),
     product_categories (
       category_id,
       categories (*)
@@ -61,6 +62,7 @@ export async function getHomeProducts(tenantId = null) {
     .select(
       `
       *,
+      product_variants(*),
       product_categories(category_id)
     `,
     )

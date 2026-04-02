@@ -1,4 +1,3 @@
-// TODO: Implementar página de categorías
 export default function CategoryPage({ params }) {
   return (
     <div className="max-w-7xl mx-auto px-6 py-24">

@@ -25,11 +25,13 @@ export default function CustomersPage() {
 
   const getErrorMessage = (error) =>
     error?.message || error?.details || "Error desconocido";
+  const toOrderCode = (id) => String(id || "").slice(-6).toUpperCase();
 
   const buildCustomerFromOrder = (order, index = 0) => {
     const embedded = order?.customer || order?.cliente || {};
     const nombre =
       embedded?.nombre_completo ||
+      order?.cliente_nombre ||
       order?.nombre_cliente ||
       order?.customer_name ||
       "Cliente sin nombre";
@@ -48,7 +50,7 @@ export default function CustomersPage() {
   };
 
   const loadCustomersTable = async () => {
-    const tables = ["clientes", "customers"];
+    const tables = ["clientes"];
     let lastError = null;
 
     for (const tableName of tables) {
@@ -94,7 +96,7 @@ export default function CustomersPage() {
       setLoading(true);
       let ordersQuery = supabase
         .from("orders")
-        .select("id, total, estado, created_at, items, cliente_id, tenant_id");
+        .select("id, total, estado, created_at, tenant_id, cliente_nombre");
       if (tenantId) {
         ordersQuery = ordersQuery.eq("tenant_id", tenantId);
       }
@@ -111,9 +113,19 @@ export default function CustomersPage() {
       const customersFromTable = await loadCustomersTable();
 
       if (customersFromTable.length > 0) {
+        const normalize = (v) =>
+          String(v || "")
+            .trim()
+            .toLowerCase();
+
         const mapped = customersFromTable.map((customer) => ({
           ...customer,
-          orders: orders.filter((order) => order.cliente_id === customer.id),
+          orders: orders.filter(
+            (order) =>
+              order.cliente_id === customer.id ||
+              normalize(order.cliente_nombre) ===
+                normalize(customer.nombre_completo),
+          ),
         }));
         setCustomers(mapped);
       } else {
@@ -398,36 +410,13 @@ export default function CustomersPage() {
                         .map((order) => (
                           <tr key={order.id}>
                             <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
-                              #{order.id.slice(-6).toUpperCase()}
+                              #{toOrderCode(order.id)}
                             </td>
                             <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                               {new Date(order.created_at).toLocaleDateString()}
                             </td>
-                            <td
-                              className="px-4 py-3 text-slate-600 dark:text-slate-300 text-[10px] max-w-[200px] truncate"
-                              title={
-                                order.items && Array.isArray(order.items)
-                                  ? order.items
-                                      .map(
-                                        (i) =>
-                                          `${i.name || i.title} (x${i.quantity})`,
-                                      )
-                                      .join(", ")
-                                  : "Sin detalle"
-                              }
-                            >
-                              {order.items && Array.isArray(order.items) ? (
-                                order.items
-                                  .map(
-                                    (i) =>
-                                      `${i.name || i.title} (x${i.quantity})`,
-                                  )
-                                  .join(", ")
-                              ) : (
-                                <span className="text-slate-400 dark:text-slate-500 italic">
-                                  Sin detalle
-                                </span>
-                              )}
+                            <td className="px-4 py-3 text-slate-400 dark:text-slate-500 text-[10px] italic">
+                              No disponible en este esquema
                             </td>
                             <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
                               ${Number(order.total).toFixed(2)}

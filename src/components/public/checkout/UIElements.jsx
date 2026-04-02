@@ -4,13 +4,14 @@ import {
   normalizeCommerceSettings,
 } from "@/lib/siteConfig";
 
-export const HeaderTitle = () => (
-  <div className="space-y-2">
+export const HeaderTitle = ({ className }) => (
+  <div className={`space-y-2 ${className}`}>
     <h1 className="text-4xl font-serif font-black text-ink uppercase tracking-tight">
       Finalizar Compra
     </h1>
     <p className="text-honey-dark text-sm">
-      Completa tu pago con el metodo activo de la tienda para procesar el pedido.
+      Completa tu pago con el metodo activo de la tienda para procesar el
+      pedido.
     </p>
   </div>
 );
@@ -22,7 +23,10 @@ export const BankDetailsCard = ({ commerceSettings, selectedMethod }) => {
   const activeMethods = (commerce.payment_methods || []).filter(Boolean);
   const methodConfigs = commerce.payment_method_configs || {};
   const methodsToRender = selectedMethod
-    ? [selectedMethod, ...activeMethods.filter((method) => method !== selectedMethod)]
+    ? [
+        selectedMethod,
+        ...activeMethods.filter((method) => method !== selectedMethod),
+      ]
     : activeMethods;
   const methodConfigCards = methodsToRender
     .map((method) => {
@@ -109,7 +113,8 @@ export const BankDetailsCard = ({ commerceSettings, selectedMethod }) => {
             Sin datos de métodos configurados
           </p>
           <p className="text-[11px] text-honey-dark">
-            Configura tus métodos en el panel administrativo para mostrarlos aquí.
+            Configura tus métodos en el panel administrativo para mostrarlos
+            aquí.
           </p>
         </div>
       )}

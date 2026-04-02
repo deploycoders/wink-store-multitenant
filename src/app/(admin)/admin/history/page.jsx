@@ -11,6 +11,7 @@ export default function HistoryPage() {
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [search, setSearch] = useState("");
   const [tipo, setTipo] = useState("todos");
   const [accion, setAccion] = useState("todas");
@@ -18,13 +19,19 @@ export default function HistoryPage() {
   /* ── Carga inicial ── */
   const fetchEntries = async () => {
     setLoading(true);
+    setLoadError("");
     const { data, error } = await supabase
       .from("bitacora")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(500);
 
-    if (!error) setEntries(data ?? []);
+    if (!error) {
+      setEntries(data ?? []);
+    } else {
+      setEntries([]);
+      setLoadError(error.message || "No se pudo cargar la bitácora.");
+    }
     setLoading(false);
   };
 
@@ -120,6 +127,12 @@ export default function HistoryPage() {
       </div>
 
       {/* Filtros */}
+      {loadError ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-700">
+          {loadError}
+        </div>
+      ) : null}
+
       <AuditFilters
         search={search}
         setSearch={setSearch}

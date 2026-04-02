@@ -33,6 +33,7 @@ export default function OrdersPage() {
     return {
       nombre_completo:
         embedded?.nombre_completo ||
+        order?.cliente_nombre ||
         order?.nombre_cliente ||
         order?.customer_name ||
         "Desconocido",
@@ -45,7 +46,7 @@ export default function OrdersPage() {
   const loadCustomersByIds = async (ids) => {
     if (!Array.isArray(ids) || ids.length === 0) return new Map();
 
-    const tables = ["clientes", "customers"];
+    const tables = ["clientes"];
     let lastError = null;
 
     for (const tableName of tables) {
@@ -140,11 +141,41 @@ export default function OrdersPage() {
     // Obtener la orden para enriquecer el log
     const orderRef = orders.find((o) => o.id === id);
 
-    let updateQuery = supabase.from("orders").update(updateData).eq("id", id);
+    let updateQuery = supabase
+      .from("orders")
+      .update(updateData)
+      .eq("id", id)
+      .select("id, estado");
     if (tenantId) {
       updateQuery = updateQuery.eq("tenant_id", tenantId);
     }
-    const { error } = await updateQuery;
+    let { data: updatedOrder, error } = await updateQuery.maybeSingle();
+
+    if (
+      error &&
+      reason &&
+      typeof error.message === "string" &&
+      error.message.includes("motivo_rechazo")
+    ) {
+      let fallbackQuery = supabase
+        .from("orders")
+        .update({ estado: newStatus })
+        .eq("id", id)
+        .select("id, estado");
+      if (tenantId) {
+        fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+      }
+      const fallback = await fallbackQuery.maybeSingle();
+      error = fallback.error;
+      updatedOrder = fallback.data;
+    }
+
+    if (!error && !updatedOrder) {
+      error = {
+        message:
+          "No se actualizó ninguna orden. Verifica tenant_id, permisos RLS o si la orden existe.",
+      };
+    }
 
     if (!error) {
       // Registrar en bitácora
@@ -174,7 +205,7 @@ export default function OrdersPage() {
       });
       fetchOrders();
     } else {
-      Swal.fire("Error", "No se pudo actualizar el estado", "error");
+      Swal.fire("Error", getErrorMessage(error), "error");
     }
   };
 
@@ -425,19 +456,19 @@ export default function OrdersPage() {
                     <span className="font-bold text-slate-900 dark:text-slate-300">
                       Nombre:
                     </span>{" "}
-                    {selectedOrder.clientes?.nombre_completo}
+                    {selectedOrder.clientes?.nombre_completo || selectedOrder.cliente_nombre || "No registrado"}
                   </p>
                   <p>
                     <span className="font-bold text-slate-900 dark:text-slate-300">
                       CI/RIF:
                     </span>{" "}
-                    {selectedOrder.clientes?.cedula}
+                    {selectedOrder.clientes?.cedula || "No registrado"}
                   </p>
                   <p>
                     <span className="font-bold text-slate-900 dark:text-slate-300">
                       Teléfono:
                     </span>{" "}
-                    {selectedOrder.clientes?.telefono}
+                    {selectedOrder.clientes?.telefono || "No registrado"}
                   </p>
                   {selectedOrder.clientes?.email && (
                     <p>
@@ -460,7 +491,7 @@ export default function OrdersPage() {
                       Referencia:
                     </span>{" "}
                     <span className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-xs">
-                      {selectedOrder.referencia_pago}
+                      {selectedOrder.referencia_pago || "No registrada"}
                     </span>
                   </p>
                   <p>
@@ -531,7 +562,7 @@ export default function OrdersPage() {
                   </ul>
                 ) : (
                   <p className="text-xs text-slate-500 dark:text-slate-400 italic">
-                    No hay detalles de artículos disponibles.
+                    No hay detalles de artículos disponibles en este esquema.
                   </p>
                 )}
               </div>

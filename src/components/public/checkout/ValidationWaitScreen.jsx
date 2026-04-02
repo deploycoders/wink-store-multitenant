@@ -14,16 +14,21 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
   const [status, setStatus] = useState("Pendiente");
   const [motivo, setMotivo] = useState("");
-  const { commerce_settings, tenant_id } = useSiteConfig();
+  const { commerce_settings, tenant_id, tenant_slug } = useSiteConfig();
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
   const configuredWhatsapp = normalizeWhatsappNumber(commerce.whatsapp_number);
   const supportWhatsapp = whatsappNumber || configuredWhatsapp;
-  const supportMessage = `Hola, mi pedido #${orderId.slice(-6).toUpperCase()} fue rechazado. El motivo indicado es: "${motivo}". Necesito ayuda con esto.`;
+  const safeOrderId =
+    orderId !== undefined && orderId !== null ? String(orderId) : "";
+  const orderCode = safeOrderId ? safeOrderId.slice(-6).toUpperCase() : "N/A";
+  const supportMessage = `Hola, mi pedido #${orderCode} fue rechazado. El motivo indicado es: "${motivo}". Necesito ayuda con esto.`;
   const supportHref = supportWhatsapp
     ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
-    : "/checkout";
+    : tenant_slug
+      ? `/${tenant_slug}/checkout`
+      : "/checkout";
 
   useEffect(() => {
     if (!orderId) return;
@@ -32,22 +37,28 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
 
     // Check immediately in case it was processed very fast
     const checkCurrentStatus = async () => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
+        return;
+      }
+
       let query = supabase
         .from("orders")
-        .select("estado, motivo_rechazo, tenant_id")
+        .select("estado, tenant_id")
         .eq("id", orderId);
 
       if (tenant_id) {
         query = query.eq("tenant_id", tenant_id);
       }
 
-      const { data } = await query.single();
+      const { data, error } = await query.single();
+      if (error) return;
+
       if (data) {
         if (data.estado === "Completado") {
           onSuccess();
         } else if (data.estado === "Cancelado") {
           setStatus("Cancelado");
-          setMotivo(data.motivo_rechazo || "Verifica los datos de tu pago e intenta nuevamente.");
+          setMotivo("Verifica los datos de tu pago e intenta nuevamente.");
         }
       }
     };
@@ -71,7 +82,7 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
             onSuccess();
           } else if (newStatus === "Cancelado") {
             setStatus("Cancelado");
-            setMotivo(payload.new.motivo_rechazo || "Verifica los datos de tu pago e intenta nuevamente.");
+            setMotivo("Verifica los datos de tu pago e intenta nuevamente.");
           }
         }
       )
@@ -123,7 +134,7 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
           >
              Contactar Soporte
           </a>
-          <Link href="/checkout">
+          <Link href={tenant_slug ? `/${tenant_slug}/checkout` : "/checkout"}>
             <Button className="flex items-center gap-2 bg-ink text-paper px-8 h-14 rounded-2xl font-bold uppercase text-[11px] tracking-[0.2em] transition-all hover:scale-105">
                Volver a Intentar
             </Button>
@@ -153,7 +164,7 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
           Recuerda que también hemos enviado la solicitud por WhatsApp.
         </p>
         <div className="text-[10px] uppercase tracking-widest text-honey-dark/50 font-bold bg-white px-4 py-2 rounded-full border border-honey-light inline-block mt-4">
-          Orden #{orderId.slice(-6).toUpperCase()}
+          Orden #{orderCode}
         </div>
       </div>
     </div>

@@ -46,7 +46,8 @@ export default function CheckoutPage() {
     reference: "",
     notes: "",
   });
-  const { site_name, commerce_settings, tenant_slug } = useSiteConfig();
+  const { site_name, commerce_settings, tenant_slug, tenant_id } =
+    useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
   const commerce = normalizeCommerceSettings(
@@ -145,13 +146,17 @@ export default function CheckoutPage() {
         const payload = {
           ...formData,
           paymentMethod: selectedPaymentMethod,
+          tenantId: tenant_id || null,
+          tenantSlug: tenant_slug || null,
         };
         const response = await processCheckoutOrder(payload, items, total);
 
         if (!response.success) {
           Swal.fire({
             title: "Error al procesar",
-            text: "Ocurrió un problema guardando tu pedido. Por favor intenta de nuevo.",
+            text:
+              response.error ||
+              "Ocurrió un problema guardando tu pedido. Por favor intenta de nuevo.",
             icon: "error",
             confirmButtonColor: "#1A1A1A",
             background: "#FBF9F6",
@@ -175,8 +180,12 @@ export default function CheckoutPage() {
 
         // Añadimos el ID de orden (si ya lo tienes de la respuesta de Supabase)
         // y el mensaje final para la foto
-        const orderIdShort = response?.orderId
-          ? `(#${response.orderId.slice(-6).toUpperCase()})`
+        const safeOrderId =
+          response?.orderId !== undefined && response?.orderId !== null
+            ? String(response.orderId)
+            : "";
+        const orderIdShort = safeOrderId
+          ? `(#${safeOrderId.slice(-6).toUpperCase()})`
           : "";
 
         const message = `Hola ${brand}! 👋
@@ -208,7 +217,7 @@ ${orderDetails}
         if (whatsappHref) window.open(whatsappHref, "_blank");
 
         setFinalTotal(total);
-        setOrderId(response.orderId);
+        setOrderId(safeOrderId || null);
         setPurchasedItems([...items]);
         clearCart();
         setIsWaiting(true);
@@ -235,10 +244,11 @@ ${orderDetails}
             />
           ) : !isSuccess ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <div className="space-y-8">
-                <HeaderTitle />
+              <HeaderTitle className="block lg:hidden" />
+              <div className="space-y-8 order-2 lg:order-1">
+                <HeaderTitle className="hidden lg:block" />
 
-                <section className="space-y-8">
+                <div className="space-y-8">
                   <div className="space-y-4">
                     <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink/40 border-b border-zinc-100 pb-2">
                       01. Información del Cliente
@@ -262,7 +272,7 @@ ${orderDetails}
                       commerceSettings={commerce}
                     />
                   </div>
-                </section>
+                </div>
 
                 <Button
                   onClick={handleVerifyPayment}
@@ -271,13 +281,14 @@ ${orderDetails}
                   Verificar Pago & Pedir por WhatsApp
                 </Button>
               </div>
-
-              <OrderSummary
-                items={items}
-                subtotal={subtotal}
-                total={total}
-                brandImageLabel={brandImageLabel}
-              />
+              <div className="order-1 lg:order-2">
+                <OrderSummary
+                  items={items}
+                  subtotal={subtotal}
+                  total={total}
+                  brandImageLabel={brandImageLabel}
+                />
+              </div>
             </div>
           ) : (
             <SuccessInvoice
