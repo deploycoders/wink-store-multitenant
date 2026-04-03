@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { buildClientUrl } from "@/lib/url";
 
 export function InvitationLink({ invitation, tenantName }) {
   const [copied, setCopied] = useState(false);
@@ -11,7 +12,7 @@ export function InvitationLink({ invitation, tenantName }) {
   if (!invitation) return null;
 
   const tenantWhatsapp = invitation.tenants?.whatsapp_number;
-  const registrationLink = `${window.location.origin}/register?token=${invitation.id}`;
+  const registrationLink = buildClientUrl(`/register?token=${invitation.id}`);
   const whatsappMessage = `¡Hola! Tu tienda ${tenantName} está lista. Regístrate aquí para comenzar a gestionar tu negocio: ${registrationLink}`;
   
   // Si tenemos el número, lo usamos en la URL de WhatsApp

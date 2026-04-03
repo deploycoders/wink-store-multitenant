@@ -1,8 +1,8 @@
 "use server";
 
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { logAudit } from "@/lib/auditLog";
 import { formatWhatsappContactNumber } from "@/lib/siteConfig";
+import { getAdminSupabaseClient } from "@/lib/supabase/admin";
 
 const normalizeVariantValue = (value) =>
   String(value || "")
@@ -31,21 +31,6 @@ const getMissingColumnName = (error) => {
   if (pgMatch?.[1]) return pgMatch[1];
 
   return null;
-};
-
-const createAdminClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error(
-      "Falta configuración de Supabase para checkout (URL o SERVICE_ROLE_KEY).",
-    );
-  }
-
-  return createSupabaseClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
 };
 
 const findExistingCustomer = async (supabase, idNumber, tenantId) =>
@@ -93,7 +78,7 @@ const createOrderWithFallback = async (supabase, payload) => {
 
 export async function processCheckoutOrder(formData, items, total) {
   try {
-    const supabase = createAdminClient();
+    const supabase = getAdminSupabaseClient();
     const normalizedCustomerPhone = formatWhatsappContactNumber(
       formData.phone,
       "58",
@@ -202,6 +187,7 @@ export async function processCheckoutOrder(formData, items, total) {
         .from("products")
         .select("id, name, stock")
         .eq("id", item.id)
+        .eq("tenant_id", tenantId)
         .single();
 
       if (productError || !productData) {
@@ -213,7 +199,8 @@ export async function processCheckoutOrder(formData, items, total) {
       const { data: variantsData, error: variantsError } = await supabase
         .from("product_variants")
         .select("id, attribute_value, stock_quantity")
-        .eq("product_id", item.id);
+        .eq("product_id", item.id)
+        .eq("tenant_id", tenantId);
 
       if (variantsError) {
         throw new Error(
@@ -254,7 +241,8 @@ export async function processCheckoutOrder(formData, items, total) {
         const { error: updateVariantError } = await supabase
           .from("product_variants")
           .update({ stock_quantity: nextVariantStock })
-          .eq("id", matchedVariant.id);
+          .eq("id", matchedVariant.id)
+          .eq("tenant_id", tenantId);
 
         if (updateVariantError) {
           throw new Error(
@@ -274,7 +262,8 @@ export async function processCheckoutOrder(formData, items, total) {
         const { error: updateProductError } = await supabase
           .from("products")
           .update({ stock: Math.max(0, recalculatedTotalStock) })
-          .eq("id", item.id);
+          .eq("id", item.id)
+          .eq("tenant_id", tenantId);
 
         if (updateProductError) {
           throw new Error(
@@ -293,7 +282,8 @@ export async function processCheckoutOrder(formData, items, total) {
         const { error: updateProductError } = await supabase
           .from("products")
           .update({ stock: Math.max(0, nextStock) })
-          .eq("id", item.id);
+          .eq("id", item.id)
+          .eq("tenant_id", tenantId);
 
         if (updateProductError) {
           throw new Error(

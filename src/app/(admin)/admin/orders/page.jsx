@@ -96,10 +96,13 @@ export default function OrdersPage() {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      let query = supabase.from("orders").select("*");
-      if (tenantId) {
-        query = query.eq("tenant_id", tenantId);
+      if (!tenantId) {
+        setOrders([]);
+        return;
       }
+
+      let query = supabase.from("orders").select("*");
+      query = query.eq("tenant_id", tenantId);
       const { data, error } = await query.order("created_at", {
         ascending: false,
       });
@@ -135,6 +138,11 @@ export default function OrdersPage() {
   }, [tenantId]);
 
   const updateStatus = async (id, newStatus, reason = null) => {
+    if (!tenantId) {
+      Swal.fire("Error", "No se pudo resolver tenant_id para actualizar.", "error");
+      return;
+    }
+
     const updateData = { estado: newStatus };
     if (reason) updateData.motivo_rechazo = reason;
 

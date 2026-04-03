@@ -24,7 +24,100 @@ const ROLE_PERMISSIONS = {
   custom: ["/admin", "/admin/profile"], // Rol personalizado inicia con acceso básico
 };
 
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 120;
+const RATE_LIMIT_BLOCK_SECONDS = Math.ceil(RATE_LIMIT_WINDOW_MS / 1000);
+
+const globalForRateLimit = globalThis;
+if (!globalForRateLimit.__tenantRateLimitStore) {
+  globalForRateLimit.__tenantRateLimitStore = new Map();
+}
+const rateLimitStore = globalForRateLimit.__tenantRateLimitStore;
+
+const RESERVED_PREFIXES = new Set([
+  "admin",
+  "api",
+  "access",
+  "_next",
+  "register",
+  "tenants",
+]);
+
+const getClientIp = (req) => {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  return "unknown";
+};
+
+const resolveTenantScope = (pathname) => {
+  if (!pathname || pathname === "/") return "root";
+  const firstSegment = pathname.split("/").filter(Boolean)[0];
+  if (!firstSegment) return "root";
+  if (RESERVED_PREFIXES.has(firstSegment)) return firstSegment;
+  return `tenant:${firstSegment}`;
+};
+
+const shouldRateLimitPath = (pathname) =>
+  pathname.startsWith("/api") ||
+  pathname.startsWith("/admin") ||
+  pathname.includes("/checkout");
+
+const cleanupExpiredRateLimitEntries = (now) => {
+  if (rateLimitStore.size < 5000) return;
+  for (const [key, value] of rateLimitStore.entries()) {
+    if (value.resetAt <= now) {
+      rateLimitStore.delete(key);
+    }
+  }
+};
+
+const applyRateLimit = (req) => {
+  const pathname = req.nextUrl.pathname;
+  if (!shouldRateLimitPath(pathname)) return null;
+
+  const now = Date.now();
+  cleanupExpiredRateLimitEntries(now);
+
+  const ip = getClientIp(req);
+  const tenantScope = resolveTenantScope(pathname);
+  const key = `${tenantScope}:${ip}`;
+
+  const current = rateLimitStore.get(key);
+  if (!current || current.resetAt <= now) {
+    rateLimitStore.set(key, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return null;
+  }
+
+  current.count += 1;
+
+  if (current.count > RATE_LIMIT_MAX_REQUESTS) {
+    const response = NextResponse.json(
+      {
+        error:
+          "Demasiadas solicitudes. Intenta nuevamente en unos segundos.",
+      },
+      { status: 429 },
+    );
+    response.headers.set("Retry-After", String(RATE_LIMIT_BLOCK_SECONDS));
+    return response;
+  }
+
+  return null;
+};
+
 export async function middleware(req) {
+  const rateLimitedResponse = applyRateLimit(req);
+  if (rateLimitedResponse) return rateLimitedResponse;
+
   let res = NextResponse.next({
     request: {
       headers: req.headers,

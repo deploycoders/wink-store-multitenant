@@ -19,17 +19,14 @@ import {
 import { useState } from "react";
 import { updateTenant } from "@/services/tenants";
 import Swal from "sweetalert2";
+import { buildClientUrl } from "@/lib/url";
 
 export function TenantTable({ tenants, loading, onTenantUpdated }) {
   const [copiedId, setCopiedId] = useState(null);
   const [statusLoading, setStatusLoading] = useState(null);
 
   const getTenantUrl = (slug) => {
-    const baseOrigin =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "http://localhost:3000";
-    return `${baseOrigin}/${slug}`;
+    return buildClientUrl(`/${slug}`);
   };
 
   const toggleStatus = async (tenant) => {

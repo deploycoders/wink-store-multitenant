@@ -1,18 +1,16 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   CheckCircle2,
   ShoppingBag,
   Download,
-  Printer,
   Eye,
 } from "lucide-react";
 import Link from "next/link";
 import { useSiteConfig } from "@/context/SiteConfigContext";
-import { DEFAULT_SITE_NAME, formatSiteHandle } from "@/lib/siteConfig";
-import { PDFDownloadLink } from "@react-pdf/renderer";
+import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 
 export function SuccessInvoice({
   formData,
@@ -39,10 +37,15 @@ export function SuccessInvoice({
     [],
   );
 
-  // Función para abrir el PDF en una pestaña nueva
-  const handleViewPDF = async () => {
+  const buildInvoiceBlob = async () => {
+    // Importamos librerías pesadas solo al momento de generar PDF
+    const [{ pdf }, { InvoicePDF }] = await Promise.all([
+      import("@react-pdf/renderer"),
+      import("@/components/InvoicePDF"),
+    ]);
+
     const doc = (
-      <InvoiceDocument
+      <InvoicePDF
         formData={formData}
         finalTotal={finalTotal}
         purchasedItems={purchasedItems}
@@ -51,9 +54,27 @@ export function SuccessInvoice({
         issueDate={issueDate}
       />
     );
-    const asBlob = await pdf(doc).toBlob();
-    const url = URL.createObjectURL(asBlob);
-    window.open(url, "_blank");
+
+    return pdf(doc).toBlob();
+  };
+
+  const handleViewPDF = async () => {
+    const asBlob = await buildInvoiceBlob();
+    const objectUrl = URL.createObjectURL(asBlob);
+    window.open(objectUrl, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
+  };
+
+  const handleDownloadPDF = async () => {
+    const asBlob = await buildInvoiceBlob();
+    const objectUrl = URL.createObjectURL(asBlob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `factura-${brand}-${orderCode}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 10_000);
   };
 
   return (
@@ -93,28 +114,13 @@ export function SuccessInvoice({
             Ver Factura
           </button>
 
-          {/* BOTÓN DESCARGAR (Link directo) */}
-          <PDFDownloadLink
-            document={
-              <InvoiceDocument
-                formData={formData}
-                finalTotal={finalTotal}
-                purchasedItems={purchasedItems}
-                orderCode={orderCode}
-                brand={brand}
-                issueDate={issueDate}
-              />
-            }
-            fileName={`factura-${brand}-${orderCode}.pdf`}
+          <button
+            onClick={handleDownloadPDF}
             className="flex items-center justify-center gap-2 bg-emerald-600 text-white h-14 rounded-2xl font-bold uppercase text-[11px] tracking-widest transition-all hover:bg-emerald-700"
           >
-            {({ loading }) => (
-              <>
-                <Download size={18} />
-                {loading ? "..." : "Descargar"}
-              </>
-            )}
-          </PDFDownloadLink>
+            <Download size={18} />
+            Descargar
+          </button>
         </div>
 
         {/* BOTÓN VOLVER (Separado abajo) */}

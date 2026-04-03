@@ -1,14 +1,16 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-let browserClient = null;
+const globalForSupabase = globalThis;
 
 export function createClient() {
-  if (browserClient) return browserClient;
+  if (globalForSupabase.__supabaseBrowserClient) {
+    return globalForSupabase.__supabaseBrowserClient;
+  }
 
-  browserClient = createBrowserClient(
+  globalForSupabase.__supabaseBrowserClient = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
 
-  return browserClient;
+  return globalForSupabase.__supabaseBrowserClient;
 }

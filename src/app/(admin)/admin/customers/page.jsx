@@ -94,12 +94,15 @@ export default function CustomersPage() {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      if (!tenantId) {
+        setCustomers([]);
+        return;
+      }
+
       let ordersQuery = supabase
         .from("orders")
         .select("id, total, estado, created_at, tenant_id, cliente_nombre");
-      if (tenantId) {
-        ordersQuery = ordersQuery.eq("tenant_id", tenantId);
-      }
+      ordersQuery = ordersQuery.eq("tenant_id", tenantId);
 
       const { data: ordersData, error: ordersError } = await ordersQuery.order(
         "created_at",

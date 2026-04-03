@@ -1,5 +1,8 @@
 import { createClient } from "./supabase/client";
 
+const SITE_CONFIG_CACHE_TTL_MS = 15 * 60 * 1000;
+const siteConfigClientCache = new Map();
+
 export const DEFAULT_SITE_NAME = "Wink Store";
 export const DEFAULT_SITE_HOSTNAME = "wink-store.com";
 export const DEFAULT_SITE_HANDLE = "wink_store";
@@ -222,6 +225,26 @@ const resolveLegacyCommerceSettings = (row = {}) => {
   return legacy.commerce_settings || legacy.commerce || legacy;
 };
 
+const getClientCacheKey = ({ tenantId, tenantSlug } = {}) =>
+  tenantId ? `tenant:${tenantId}` : tenantSlug ? `slug:${tenantSlug}` : "default";
+
+const readClientCachedSiteConfig = (key) => {
+  const cached = siteConfigClientCache.get(key);
+  if (!cached) return null;
+  if (Date.now() > cached.expiresAt) {
+    siteConfigClientCache.delete(key);
+    return null;
+  }
+  return cached.data;
+};
+
+const writeClientCachedSiteConfig = (key, data) => {
+  siteConfigClientCache.set(key, {
+    data,
+    expiresAt: Date.now() + SITE_CONFIG_CACHE_TTL_MS,
+  });
+};
+
 export const normalizeWhatsappNumber = (value) =>
   String(value || "").replace(/\D/g, "");
 
@@ -241,6 +264,15 @@ export const formatWhatsappContactNumber = (
 };
 
 export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
+  if (typeof window === "undefined") {
+    const { getSiteConfigServerCached } = await import("./siteConfig.server");
+    return getSiteConfigServerCached({ tenantId, tenantSlug });
+  }
+
+  const cacheKey = getClientCacheKey({ tenantId, tenantSlug });
+  const cached = readClientCachedSiteConfig(cacheKey);
+  if (cached) return cached;
+
   const supabase = createClient();
 
   let activeTenantId = tenantId;
@@ -269,7 +301,9 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
 
   // 2. Si finalmente no hay ID, devolvemos los defaults
   if (!activeTenantId) {
-    return returnDefaults(tenantId);
+    const defaults = returnDefaults(tenantId);
+    writeClientCachedSiteConfig(cacheKey, defaults);
+    return defaults;
   }
 
   // 3. Usamos maybeSingle() para que si no hay datos, data sea null en lugar de lanzar error
@@ -282,16 +316,20 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
   // 3. Si hay un error real de conexión o la tabla no existe
   if (error) {
     console.error("Error crítico de base de datos:", error.message);
-    return returnDefaults();
+    const defaults = returnDefaults();
+    writeClientCachedSiteConfig(cacheKey, defaults);
+    return defaults;
   }
 
   // 4. Si la consulta fue exitosa pero no hay datos (tabla vacía)
   if (!data) {
-    return returnDefaults();
+    const defaults = returnDefaults(activeTenantId);
+    writeClientCachedSiteConfig(cacheKey, defaults);
+    return defaults;
   }
 
   // 5. Si hay datos, normalizamos
-  return {
+  const normalized = {
     tenant_id: activeTenantId,
     ...data,
     hero_slides: normalizeHeroSlides(data.hero_slides),
@@ -309,10 +347,13 @@ export const getSiteConfig = async ({ tenantId, tenantSlug } = {}) => {
       data.commerce_settings || resolveLegacyCommerceSettings(data),
     ),
   };
+
+  writeClientCachedSiteConfig(cacheKey, normalized);
+  return normalized;
 };
 
 // Función auxiliar para no repetir código
-const returnDefaults = (tenantId = null) => ({
+export const returnDefaults = (tenantId = null) => ({
   tenant_id: tenantId,
   site_name: DEFAULT_SITE_NAME,
   hero_slides: [

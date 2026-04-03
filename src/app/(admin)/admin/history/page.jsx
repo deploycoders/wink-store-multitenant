@@ -5,9 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import { ClipboardList, RefreshCw } from "lucide-react";
 import { AuditFilters } from "@/components/admin/bitacora/AuditFilters";
 import { AuditTable } from "@/components/admin/bitacora/AuditTable";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function HistoryPage() {
   const supabase = createClient();
+  const { tenant_id: tenantId } = useSiteConfig();
 
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,9 +22,18 @@ export default function HistoryPage() {
   const fetchEntries = async () => {
     setLoading(true);
     setLoadError("");
+
+    if (!tenantId) {
+      setEntries([]);
+      setLoadError("No se pudo resolver tenant_id para cargar la bitácora.");
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from("bitacora")
       .select("*")
+      .contains("meta", { tenant_id: tenantId })
       .order("created_at", { ascending: false })
       .limit(500);
 
@@ -53,7 +64,7 @@ export default function HistoryPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [tenantId]);
 
   /* ── Filtros en cliente ── */
   const filtered = useMemo(() => {

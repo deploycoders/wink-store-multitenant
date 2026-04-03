@@ -1,0 +1,117 @@
+import { unstable_cache } from "next/cache";
+import {
+  DEFAULT_COMMERCE_SETTINGS,
+  DEFAULT_FOOTER_SETTINGS,
+  DEFAULT_HEADER_MENU,
+  DEFAULT_HOME_INTRO,
+  DEFAULT_PRODUCTS_INTRO,
+  normalizeCommerceSettings,
+  normalizeFooterSettings,
+  normalizeHeaderMenu,
+  normalizeHeroSlides,
+  normalizePromoDivider,
+  returnDefaults,
+} from "./siteConfig";
+import { getPublicSupabaseClient } from "./supabase/public";
+
+const resolveLegacyFooterSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!legacy || typeof legacy !== "object") return null;
+  return legacy.footer_settings || legacy.footer || legacy;
+};
+
+const resolveLegacyCommerceSettings = (row = {}) => {
+  const legacy = row?.footer_commerce;
+  if (!legacy || typeof legacy !== "object") return null;
+  return legacy.commerce_settings || legacy.commerce || legacy;
+};
+
+const getTenantIdBySlugCached = unstable_cache(
+  async (tenantSlug) => {
+    if (!tenantSlug) return null;
+    const supabase = getPublicSupabaseClient();
+    const { data } = await supabase
+      .from("tenants")
+      .select("tenant_id")
+      .eq("slug", tenantSlug)
+      .eq("status", "Active")
+      .maybeSingle();
+    return data?.tenant_id || null;
+  },
+  ["tenant-id-by-slug"],
+  { revalidate: 900 },
+);
+
+const getFirstActiveTenantIdCached = unstable_cache(
+  async () => {
+    const supabase = getPublicSupabaseClient();
+    const { data } = await supabase
+      .from("tenants")
+      .select("tenant_id")
+      .eq("status", "Active")
+      .limit(1)
+      .maybeSingle();
+    return data?.tenant_id || null;
+  },
+  ["first-active-tenant-id"],
+  { revalidate: 900 },
+);
+
+const getSiteSettingsByTenantIdCached = unstable_cache(
+  async (tenantId) => {
+    if (!tenantId) return null;
+    const supabase = getPublicSupabaseClient();
+    const { data } = await supabase
+      .from("site_settings")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    return data || null;
+  },
+  ["site-settings-by-tenant-id"],
+  { revalidate: 900 },
+);
+
+export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {
+  let activeTenantId = tenantId || null;
+
+  if (!activeTenantId && tenantSlug) {
+    activeTenantId = await getTenantIdBySlugCached(tenantSlug);
+  }
+
+  if (!activeTenantId) {
+    activeTenantId = await getFirstActiveTenantIdCached();
+  }
+
+  if (!activeTenantId) {
+    return returnDefaults(tenantId || null);
+  }
+
+  const data = await getSiteSettingsByTenantIdCached(activeTenantId);
+  if (!data) {
+    return returnDefaults(activeTenantId);
+  }
+
+  return {
+    tenant_id: activeTenantId,
+    ...data,
+    hero_slides: normalizeHeroSlides(data.hero_slides),
+    home_intro: { ...DEFAULT_HOME_INTRO, ...(data.home_intro || {}) },
+    products_intro: {
+      ...DEFAULT_PRODUCTS_INTRO,
+      ...(data.products_intro || {}),
+    },
+    header_menu: normalizeHeaderMenu(
+      data.header_menu || DEFAULT_HEADER_MENU,
+    ),
+    promo_divider: normalizePromoDivider(data.promo_divider),
+    footer_settings: normalizeFooterSettings(
+      data.footer_settings || resolveLegacyFooterSettings(data) || DEFAULT_FOOTER_SETTINGS,
+    ),
+    commerce_settings: normalizeCommerceSettings(
+      data.commerce_settings ||
+        resolveLegacyCommerceSettings(data) ||
+        DEFAULT_COMMERCE_SETTINGS,
+    ),
+  };
+}
