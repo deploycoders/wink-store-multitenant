@@ -5,16 +5,16 @@ export const createOrder = async (formData, items, total) => {
 
   // 1. Primero manejamos al cliente (Upsert: inserta o actualiza por cédula)
   const { data: customer, error: custError } = await supabase
-    .from("clientes")
+    .from("customers")
     .upsert(
       {
         tenant_id: tenantId,
-        cedula: formData.idNumber,
-        nombre_completo: formData.name,
-        telefono: formData.phone,
+        id_number: formData.idNumber,
+        full_name: formData.name,
+        phone: formData.phone,
         email: formData.email,
       },
-      { onConflict: "tenant_id,cedula" },
+      { onConflict: "tenant_id,id_number" },
     )
     .select()
     .single();
@@ -25,16 +25,16 @@ export const createOrder = async (formData, items, total) => {
   const { error: orderError } = await supabase.from("orders").insert([
     {
       tenant_id: tenantId,
-      cliente_id: customer.id,
-      cliente_nombre: formData.name,
-      cedula: formData.idNumber,
-      telefono: formData.phone,
+      customer_id: customer.id,
+      customer_name: formData.name,
+      customer_id_number: formData.idNumber,
+      customer_phone: formData.phone,
       email: formData.email || null,
       referencia_pago: formData.reference,
       items: items,
       total: total,
       notas: formData.notes,
-      estado: "Pendiente",
+      estado: "pending",
     },
   ]);
 

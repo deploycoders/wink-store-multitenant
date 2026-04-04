@@ -13,6 +13,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
 
 const AVAILABLE_MODULES = [
@@ -40,6 +41,7 @@ const RolesManager = () => {
   const [editingId, setEditingId] = useState(null);
   const [isResetMode, setIsResetMode] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
 
   const [formData, setFormData] = useState({
@@ -59,7 +61,17 @@ const RolesManager = () => {
         .order("full_name");
 
       if (error) throw error;
-      setStaff(data || []);
+      
+      const { data: memberData } = await supabase
+        .from("tenant_members")
+        .select("user_id, role");
+        
+      const staffList = (data || []).map(staff => {
+        const mem = (memberData || []).find(m => m.user_id === staff.id);
+        return { ...staff, role: mem?.role || "viewer" };
+      });
+      
+      setStaff(staffList);
     } catch (error) {
       console.error("Error cargando staff:", error.message);
     } finally {
@@ -129,6 +141,7 @@ const RolesManager = () => {
             permissions: formData.permissions,
             actor_name: currentUser?.email ?? "Admin",
             target_name: targetMember?.full_name ?? formData.email,
+            tenant_id: targetMember?.tenant_id || tenantId
           }),
         });
         const result = await response.json();
@@ -146,6 +159,7 @@ const RolesManager = () => {
           body: JSON.stringify({
             ...formData,
             actor_name: currentUser?.email ?? "Admin",
+            tenant_id: tenantId
           }),
         });
         const result = await response.json();

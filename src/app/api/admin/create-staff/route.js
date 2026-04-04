@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/auditLog";
 
 export async function POST(request) {
   try {
-    const { email, password, full_name, role, permissions, actor_name } = await request.json();
+    const { email, password, full_name, role, permissions, actor_name, tenant_id } = await request.json();
 
     // 1. Creamos un cliente de Supabase con la Service Role Key (Permisos de Admin)
     const supabaseAdmin = createClient(
@@ -34,7 +34,7 @@ export async function POST(request) {
           id: authData.user.id,
           full_name,
           email,
-          role,
+          tenant_id,
           permissions: permissions || [],
         },
       ]);
@@ -42,6 +42,14 @@ export async function POST(request) {
     if (profileError) {
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
       throw profileError;
+    }
+
+    if (tenant_id) {
+      await supabaseAdmin.from("tenant_members").insert({
+        tenant_id,
+        user_id: authData.user.id,
+        role: role || "viewer"
+      });
     }
 
     // 4. Registrar en bitácora

@@ -40,21 +40,24 @@
  */
 export async function logAudit(supabase, payload) {
   try {
-    const { error } = await supabase.from("bitacora").insert([
+    const { error } = await supabase.from("audit_logs").insert([
       {
-        tipo: payload.tipo,
-        accion: payload.accion,
-        descripcion: payload.descripcion ?? null,
-        usuario_id: payload.usuario_id ?? null,
-        usuario_nombre: payload.usuario_nombre ?? "Sistema",
-        meta: payload.meta ?? null,
+        tenant_id: payload.meta?.tenant_id || payload.tenantId || null,
+        user_id: payload.usuario_id ?? null,
+        action: payload.accion,
+        module: payload.tipo ?? "system",
+        details: {
+          description: payload.descripcion ?? null,
+          user_name: payload.usuario_nombre ?? "Sistema",
+          ...(payload.meta || {})
+        },
       },
     ]);
     if (error) {
       const message = error?.message || "";
       const missingTable =
         error?.code === "PGRST205" ||
-        /Could not find the table 'public\.bitacora'/i.test(message);
+        /Could not find the table 'public\.audit_logs'/i.test(message);
 
       if (missingTable) {
         return;

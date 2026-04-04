@@ -29,9 +29,8 @@ export default function AdminDashboard() {
       const buildCustomerFromOrder = (order) => {
         const embedded = order?.customer || order?.cliente || {};
         return {
-          nombre_completo:
-            embedded?.nombre_completo ||
-            order?.nombre_cliente ||
+          full_name:
+            embedded?.full_name ||
             order?.customer_name ||
             "Desconocido",
         };
@@ -39,7 +38,7 @@ export default function AdminDashboard() {
 
       const attachCustomers = async (orders) => {
         const ids = [
-          ...new Set(orders.map((order) => order.cliente_id).filter(Boolean)),
+          ...new Set(orders.map((order) => order.customer_id).filter(Boolean)),
         ];
         if (ids.length === 0) {
           return orders.map((order) => ({
@@ -48,13 +47,13 @@ export default function AdminDashboard() {
           }));
         }
 
-        const tables = ["clientes", "customers"];
+        const tables = ["customers"];
         let customerMap = new Map();
 
         for (const tableName of tables) {
           let query = supabase
             .from(tableName)
-            .select("id, nombre_completo")
+            .select("id, full_name")
             .in("id", ids);
           if (tenantId) query = query.eq("tenant_id", tenantId);
 
@@ -68,18 +67,18 @@ export default function AdminDashboard() {
         return orders.map((order) => ({
           ...order,
           clientes:
-            customerMap.get(order.cliente_id) || buildCustomerFromOrder(order),
+            customerMap.get(order.customer_id) || buildCustomerFromOrder(order),
         }));
       };
 
-      // 1. Ventas Hoy (estado Completado)
+      // 1. Ventas Hoy (estado Completado / paid)
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
       let todayQuery = supabase
         .from("orders")
         .select("total")
-        .eq("estado", "Completado")
+        .eq("estado", "paid")
         .gte("created_at", startOfToday.toISOString());
       if (tenantId) todayQuery = todayQuery.eq("tenant_id", tenantId);
       const { data: hoyOrders } = await todayQuery;
@@ -107,7 +106,7 @@ export default function AdminDashboard() {
       let recentQuery = supabase
         .from("orders")
         .select(
-          "id, total, estado, created_at, cliente_id, nombre_cliente, customer_name, customer",
+          "id, total, estado, created_at, customer_id, customer_name, customer_id_number, customer_phone",
         )
         .order("created_at", { ascending: false })
         .limit(5);
@@ -239,7 +238,7 @@ export default function AdminDashboard() {
                         #{order.id.slice(-6).toUpperCase()}
                       </td>
                       <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
-                        {order.clientes?.nombre_completo || "Desconocido"}
+                        {order.clientes?.full_name || "Desconocido"}
                       </td>
                       <td className="px-6 py-4 font-bold text-slate-900 dark:text-white">
                         ${Number(order.total).toFixed(2)}
@@ -247,14 +246,14 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                            order.estado === "Pendiente"
+                            order.estado === "pending"
                               ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
-                              : order.estado === "Completado"
+                              : order.estado === "paid"
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                                 : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
                           }`}
                         >
-                          {order.estado}
+                          {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
                         </span>
                       </td>
                     </tr>

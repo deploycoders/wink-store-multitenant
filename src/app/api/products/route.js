@@ -13,10 +13,14 @@ const normalizeProductVariants = (variants = []) =>
       Number(variant.stock_adjustment ?? variant.stock_quantity ?? 0) || 0,
   }));
 
-const mapProductForClient = (product) => ({
-  ...product,
-  product_variants: normalizeProductVariants(product.product_variants),
-});
+const mapProductForClient = (product) => {
+  const stockObj = Array.isArray(product.product_stock) ? product.product_stock[0] : product.product_stock;
+  return {
+    ...product,
+    stock: stockObj ? stockObj.quantity : 0,
+    product_variants: normalizeProductVariants(product.product_variants),
+  };
+};
 
 const mapVariantToDb = (variant, { tenantId, productId }) => ({
   product_id: productId,
@@ -47,7 +51,7 @@ export async function GET(request) {
   *,
   category:categories!category_id(id, name),
   subcategory:categories!subcategory_id(id, name),
-  product_categories(category_id),
+  product_stock(quantity),
   product_variants(*)
 `);
 
@@ -131,7 +135,6 @@ export async function POST(request) {
           description,
           price: parseFloat(price),
           discount_price: discount_price ? parseFloat(discount_price) : null,
-          stock: parseInt(stock) || 0,
           images: images || [],
           subcategory_id: subcategory_id || null,
           status: status || "draft",
@@ -152,26 +155,20 @@ export async function POST(request) {
 
     if (pError) throw pError;
     const productId = product.id;
+    const parsedStock = parseInt(stock) || 0;
 
-    // 2. Insertar categorías en la tabla pivot (product_categories)
-    const uniqueCategoryIds = normalizedCategoryIds;
-
-    if (uniqueCategoryIds.length > 0) {
-      const pcToInsert = uniqueCategoryIds.map((catId) => ({
+    if (parsedStock > 0) {
+      const { error: stockEx } = await supabase.from("stock_movements").insert({
+        tenant_id: tenantId,
         product_id: productId,
-        category_id: catId,
-        tenant_id: tenantId, // <--- No olvides el tenant_id aquí también
-      }));
-
-      const { error: pcError } = await supabase
-        .from("product_categories")
-        .insert(pcToInsert);
-
-      if (pcError) {
-        console.error("Error inserting product categories:", pcError);
-        // Opcional: throw pcError si quieres que la creación falle si no hay categorías
-      }
+        movement_type: "adjustment",
+        quantity: parsedStock,
+        reason: "Initial stock creation",
+        reference_type: "products_api"
+      });
+      if (stockEx) console.warn("Failed creating initial stock:", stockEx);
     }
+
 
     // 3. Insertar variantes si existen
     if (variants.length > 0) {

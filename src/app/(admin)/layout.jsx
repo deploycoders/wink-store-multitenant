@@ -97,11 +97,22 @@ export default function AdminLayout({ children }) {
           .eq("id", session.user.id)
           .single();
 
+        let memberRole = "viewer";
+        if (profile?.tenant_id) {
+          const { data: member } = await supabase
+            .from("tenant_members")
+            .select("role")
+            .eq("tenant_id", profile.tenant_id)
+            .eq("user_id", session.user.id)
+            .single();
+          if (member?.role) memberRole = member.role;
+        }
+
         if (error || !profile) {
           setUserRole("viewer");
         } else {
-          setUserRole(profile.role);
-          setUserProfile(profile);
+          setUserRole(memberRole);
+          setUserProfile({ ...profile, role: memberRole });
         }
       } catch (err) {
         console.error("Auth error:", err);

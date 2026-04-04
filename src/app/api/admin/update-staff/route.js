@@ -4,7 +4,7 @@ import { logAudit } from "@/lib/auditLog";
 
 export async function POST(request) {
   try {
-    const { userId, email, role, permissions, actor_name, target_name } = await request.json();
+    const { userId, email, role, permissions, actor_name, target_name, tenant_id } = await request.json();
 
     const supabaseAdmin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,10 +20,16 @@ export async function POST(request) {
     // 2. Actualizar el rol y permisos en staff_profiles
     const { error: profileError } = await supabaseAdmin
       .from("staff_profiles")
-      .update({ role: role, permissions: permissions || [] })
+      .update({ permissions: permissions || [] })
       .eq("id", userId);
 
     if (profileError) throw profileError;
+
+    if (tenant_id) {
+      await supabaseAdmin
+        .from("tenant_members")
+        .upsert({ tenant_id, user_id: userId, role: role || "viewer" }, { onConflict: 'tenant_id,user_id' });
+    }
 
     // 3. Registrar en bitácora
     await logAudit(supabaseAdmin, {

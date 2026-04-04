@@ -19,10 +19,14 @@ const normalizeProductVariants = (variants = []) =>
       ) || 0,
   }));
 
-const normalizeProduct = (product) => ({
-  ...product,
-  product_variants: normalizeProductVariants(product.product_variants),
-});
+const normalizeProduct = (product) => {
+  const stockObj = Array.isArray(product.product_stock) ? product.product_stock[0] : product.product_stock;
+  return {
+    ...product,
+    stock: stockObj ? stockObj.quantity : 0,
+    product_variants: normalizeProductVariants(product.product_variants),
+  };
+};
 
 export async function getProducts(tenantId = null) {
   const supabase = await createClient();
@@ -33,10 +37,7 @@ export async function getProducts(tenantId = null) {
       `
     *,
     product_variants(*),
-    product_categories (
-      category_id,
-      categories (*)
-    )
+    product_stock(quantity)
 `,
     )
     .eq("status", "published");
@@ -63,7 +64,7 @@ export async function getHomeProducts(tenantId = null) {
       `
       *,
       product_variants(*),
-      product_categories(category_id)
+      product_stock(quantity)
     `,
     )
     .eq("status", "published")
@@ -95,7 +96,8 @@ export async function getProductBySlug(slug, tenantId = null) {
       `
       *,
       categories!subcategory_id(*),
-      product_variants(*)
+      product_variants(*),
+      product_stock(quantity)
     `,
     )
     .eq("slug", slug)

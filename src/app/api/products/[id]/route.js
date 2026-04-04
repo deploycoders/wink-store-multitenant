@@ -57,7 +57,6 @@ export async function PUT(request, { params }) {
         description,
         price: parseFloat(price),
         discount_price: discount_price ? parseFloat(discount_price) : null,
-        stock: parseInt(stock),
         images: images || [],
         subcategory_id: subcategory_id || null,
         status,
@@ -78,35 +77,22 @@ export async function PUT(request, { params }) {
 
     if (pError) throw pError;
 
-    // 2. Sincronizar categorías (product_categories)
-    if (category_ids) {
-      const uniqueCategoryIds = normalizedCategoryIds;
-
-      // A. Limpiar todas las relaciones previas del producto (sin filtrar tenant
-      // para cubrir filas legacy con tenant_id NULL)
-      const { error: delError } = await supabase
-        .from("product_categories")
-        .delete()
-        .eq("product_id", id);
-      if (delError) throw delError;
-
-      // B. Insertar nuevas relaciones de forma idempotente
-      if (uniqueCategoryIds.length > 0) {
-        const pcToInsert = uniqueCategoryIds.map((catId) => ({
-          product_id: id,
-          category_id: catId,
-          tenant_id: tenantId || null,
-        }));
-
-        const { error: pcError } = await supabase
-          .from("product_categories")
-          .upsert(pcToInsert, { onConflict: "product_id,category_id" });
-
-        if (pcError) {
-          throw new Error(`Error actualizando categorías: ${pcError.message}`);
-        }
-      }
+    const parsedStock = parseInt(stock) || 0;
+    const { data: currentStockObj } = await supabase.from('product_stock').select('quantity').eq('product_id', id).single();
+    const currentStockQuant = currentStockObj ? Number(currentStockObj.quantity) : 0;
+    const stockDiff = parsedStock - currentStockQuant;
+    
+    if (stockDiff !== 0) {
+      await supabase.from("stock_movements").insert({
+        tenant_id: tenantId,
+        product_id: id,
+        movement_type: stockDiff > 0 ? "adjustment" : "out",
+        quantity: Math.abs(stockDiff),
+        reason: "Admin stock update",
+        reference_type: "products_api"
+      });
     }
+
 
     // 3. Refrescar variantes (borrar y re-insertar para simplicidad)
     if (variants) {

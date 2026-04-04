@@ -30,18 +30,16 @@ export default function CustomersPage() {
   const buildCustomerFromOrder = (order, index = 0) => {
     const embedded = order?.customer || order?.cliente || {};
     const nombre =
-      embedded?.nombre_completo ||
-      order?.cliente_nombre ||
-      order?.nombre_cliente ||
+      embedded?.full_name ||
       order?.customer_name ||
       "Cliente sin nombre";
-    const telefono = embedded?.telefono || order?.telefono || "";
-    const cedula = embedded?.cedula || order?.cedula || "";
+    const telefono = embedded?.phone || order?.customer_phone || "";
+    const cedula = embedded?.id_number || order?.customer_id_number || "";
     const email = embedded?.email || order?.email || "";
     const fallbackKey = `${telefono || "sin-telefono"}-${cedula || "sin-cedula"}-${email || "sin-email"}-${index}`;
 
     return {
-      id: order?.cliente_id || fallbackKey,
+      id: order?.customer_id || fallbackKey,
       nombre_completo: nombre,
       telefono,
       cedula,
@@ -50,20 +48,20 @@ export default function CustomersPage() {
   };
 
   const loadCustomersTable = async () => {
-    const tables = ["clientes"];
+    const tables = ["customers"];
     let lastError = null;
 
     for (const tableName of tables) {
       let query = supabase
         .from(tableName)
-        .select("id, nombre_completo, cedula, telefono, email");
+        .select("id, full_name, id_number, phone, email");
 
       if (tenantId) {
         query = query.eq("tenant_id", tenantId);
       }
 
       const { data, error } = await query.order("nombre_completo");
-      if (!error) return data || [];
+      if (!error) return (data || []).map(row => ({ ...row, nombre_completo: row.full_name, cedula: row.id_number, telefono: row.phone }));
 
       lastError = error;
 
@@ -74,9 +72,9 @@ export default function CustomersPage() {
       ) {
         const retry = await supabase
           .from(tableName)
-          .select("id, nombre_completo, cedula, telefono, email")
-          .order("nombre_completo");
-        if (!retry.error) return retry.data || [];
+          .select("id, full_name, id_number, phone, email")
+          .order("full_name");
+        if (!retry.error) return (retry.data || []).map(row => ({ ...row, nombre_completo: row.full_name, cedula: row.id_number, telefono: row.phone }));
         lastError = retry.error;
       }
     }
@@ -101,7 +99,7 @@ export default function CustomersPage() {
 
       let ordersQuery = supabase
         .from("orders")
-        .select("id, total, estado, created_at, tenant_id, cliente_nombre");
+        .select("id, total, estado, created_at, tenant_id, customer_name, customer_id, customer_id_number, customer_phone");
       ordersQuery = ordersQuery.eq("tenant_id", tenantId);
 
       const { data: ordersData, error: ordersError } = await ordersQuery.order(
@@ -125,8 +123,8 @@ export default function CustomersPage() {
           ...customer,
           orders: orders.filter(
             (order) =>
-              order.cliente_id === customer.id ||
-              normalize(order.cliente_nombre) ===
+              order.customer_id === customer.id ||
+              normalize(order.customer_name) ===
                 normalize(customer.nombre_completo),
           ),
         }));
@@ -368,7 +366,7 @@ export default function CustomersPage() {
                     <span className="ml-2 font-black text-emerald-600 dark:text-emerald-400">
                       $
                       {selectedCustomer.orders
-                        ?.filter((o) => o.estado === "Completado")
+                        ?.filter((o) => o.estado === "paid")
                         .reduce((sum, o) => sum + Number(o.total || 0), 0)
                         .toFixed(2)}
                     </span>
@@ -427,14 +425,14 @@ export default function CustomersPage() {
                             <td className="px-4 py-3">
                               <span
                                 className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
-                                  order.estado === "Pendiente"
+                                  order.estado === "pending"
                                     ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
-                                    : order.estado === "Completado"
+                                    : order.estado === "paid"
                                       ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                                       : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
                                 }`}
                               >
-                                {order.estado}
+                                {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
                               </span>
                             </td>
                           </tr>

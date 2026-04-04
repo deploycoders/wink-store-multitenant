@@ -6,9 +6,6 @@ import {
   normalizeParentIds,
 } from "@/lib/categoryRelations";
 
-const isMissingCategoryParentsTable = (error) =>
-  typeof error?.message === "string" &&
-  error.message.includes("category_parents");
 
 // GET /api/categories
 export async function GET(request) {
@@ -32,24 +29,10 @@ export async function GET(request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  let links = [];
-  let linksQuery = supabase
-    .from("category_parents")
-    .select("parent_id, subcategory_id");
-
-  if (tenantId) {
-    linksQuery = linksQuery.eq("tenant_id", tenantId);
-  }
-
-  const { data: linkRows, error: linksError } = await linksQuery;
-  if (!linksError) {
-    links = linkRows || [];
-  } else if (!isMissingCategoryParentsTable(linksError)) {
-    return NextResponse.json(
-      { success: false, error: linksError.message },
-      { status: 500 },
-    );
-  }
+  const links = (categories || []).filter(c => c.parent_id).map(c => ({
+    parent_id: c.parent_id,
+    subcategory_id: c.id
+  }));
 
   return NextResponse.json({
     success: true,
@@ -104,35 +87,7 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
-    if (normalizedParentIds.length > 0) {
-      const relations = normalizedParentIds.map((parentId) => ({
-        parent_id: parentId,
-        subcategory_id: data.id,
-        tenant_id: tenantId,
-      }));
 
-      const { error: linkError } = await supabase
-        .from("category_parents")
-        .insert(relations);
-
-      if (linkError && isMissingCategoryParentsTable(linkError)) {
-        if (normalizedParentIds.length > 1) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "Para usar múltiples padres por subcategoría debes crear la tabla category_parents.",
-            },
-            { status: 400 },
-          );
-        }
-      } else if (linkError) {
-        return NextResponse.json(
-          { success: false, error: linkError.message },
-          { status: 500 },
-        );
-      }
-    }
 
     return NextResponse.json({ success: true, data }, { status: 201 });
   } catch (err) {

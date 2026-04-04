@@ -40,7 +40,7 @@ export default function ProductsPage() {
       let queryWithRelations = supabase
         .from("products")
         .select(
-          "*, product_categories(category_id, categories(name)), product_variants(*)",
+          "*, category:categories!category_id(id, name), subcategory:categories!subcategory_id(id, name), product_variants(*)",
         );
 
       if (tenantId) {
@@ -453,12 +453,7 @@ export default function ProductsPage() {
                           {product.name}
                         </p>
                         <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                          {product.product_categories?.length > 0
-                            ? product.product_categories
-                                .map((pc) => pc.categories?.name)
-                                .filter(Boolean)
-                                .join(", ")
-                            : "Sin categoría"}
+                          {product.subcategory?.name || product.category?.name || "Sin categoría"}
                         </p>
                       </div>
                     </div>

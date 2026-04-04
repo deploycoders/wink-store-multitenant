@@ -32,13 +32,11 @@ export default function OrdersPage() {
     const embedded = order?.customer || order?.cliente || {};
     return {
       nombre_completo:
-        embedded?.nombre_completo ||
-        order?.cliente_nombre ||
-        order?.nombre_cliente ||
+        embedded?.full_name ||
         order?.customer_name ||
         "Desconocido",
-      telefono: embedded?.telefono || order?.telefono || "",
-      cedula: embedded?.cedula || order?.cedula || "",
+      telefono: embedded?.phone || order?.customer_phone || "",
+      cedula: embedded?.id_number || order?.customer_id_number || "",
       email: embedded?.email || order?.email || "",
     };
   };
@@ -46,13 +44,13 @@ export default function OrdersPage() {
   const loadCustomersByIds = async (ids) => {
     if (!Array.isArray(ids) || ids.length === 0) return new Map();
 
-    const tables = ["clientes"];
+    const tables = ["customers"];
     let lastError = null;
 
     for (const tableName of tables) {
       let query = supabase
         .from(tableName)
-        .select("id, nombre_completo, telefono, cedula, email");
+        .select("id, full_name, phone, id_number, email");
 
       if (tenantId) {
         query = query.eq("tenant_id", tenantId);
@@ -62,7 +60,7 @@ export default function OrdersPage() {
       const { data, error } = await query;
 
       if (!error) {
-        return new Map((data || []).map((row) => [row.id, row]));
+        return new Map((data || []).map((row) => [row.id, { ...row, nombre_completo: row.full_name, telefono: row.phone, cedula: row.id_number }]));
       }
 
       lastError = error;
@@ -74,10 +72,10 @@ export default function OrdersPage() {
       ) {
         const retry = await supabase
           .from(tableName)
-          .select("id, nombre_completo, telefono, cedula, email")
+          .select("id, full_name, phone, id_number, email")
           .in("id", ids);
         if (!retry.error) {
-          return new Map((retry.data || []).map((row) => [row.id, row]));
+          return new Map((retry.data || []).map((row) => [row.id, { ...row, nombre_completo: row.full_name, telefono: row.phone, cedula: row.id_number }]));
         }
         lastError = retry.error;
       }
@@ -111,14 +109,14 @@ export default function OrdersPage() {
 
       const ordersData = data || [];
       const customerIds = [
-        ...new Set(ordersData.map((order) => order.cliente_id).filter(Boolean)),
+        ...new Set(ordersData.map((order) => order.customer_id).filter(Boolean)),
       ];
       const customersById = await loadCustomersByIds(customerIds);
 
       const mergedOrders = ordersData.map((order) => ({
         ...order,
         clientes:
-          customersById.get(order.cliente_id) || buildCustomerFromOrder(order),
+          customersById.get(order.customer_id) || buildCustomerFromOrder(order),
       }));
 
       setOrders(mergedOrders);
@@ -187,7 +185,7 @@ export default function OrdersPage() {
 
     if (!error) {
       // Registrar en bitácora
-      const accion = newStatus === "Completado" ? "aceptar" : "rechazar";
+      const accion = newStatus === "paid" ? "aceptar" : "rechazar";
       await logAudit(supabase, {
         tipo: "orden",
         accion,
@@ -255,7 +253,7 @@ export default function OrdersPage() {
     });
 
     if (formValues) {
-      await updateStatus(id, "Cancelado", formValues);
+      await updateStatus(id, "cancelled", formValues);
     }
   };
 
@@ -308,9 +306,9 @@ export default function OrdersPage() {
           className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer w-full md:w-auto"
         >
           <option value="Todos los estados">Todos los estados</option>
-          <option value="Pendiente">Pendiente</option>
-          <option value="Completado">Completado</option>
-          <option value="Cancelado">Cancelado</option>
+          <option value="pending">Pendiente</option>
+          <option value="paid">Completado</option>
+          <option value="cancelled">Cancelado</option>
         </select>
       </div>
 
@@ -381,14 +379,14 @@ export default function OrdersPage() {
                   <td className="px-6 py-4">
                     <span
                       className={`inline-flex px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                        order.estado === "Pendiente"
+                        order.estado === "pending"
                           ? "bg-orange-50 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
-                          : order.estado === "Completado"
+                          : order.estado === "paid"
                             ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
                             : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                       }`}
                     >
-                      {order.estado}
+                      {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -400,10 +398,10 @@ export default function OrdersPage() {
                       >
                         <Eye size={18} />
                       </button>
-                      {order.estado === "Pendiente" && (
+                      {order.estado === "pending" && (
                         <>
                           <button
-                            onClick={() => updateStatus(order.id, "Completado")}
+                            onClick={() => updateStatus(order.id, "paid")}
                             className="p-2 hover:text-emerald-600 cursor-pointer dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/20 rounded-lg transition-all"
                             title="Completar"
                           >
@@ -514,17 +512,17 @@ export default function OrdersPage() {
                     </span>
                     <span
                       className={`ml-2 px-2 py-0.5 rounded uppercase text-[10px] font-bold ${
-                        selectedOrder.estado === "Pendiente"
+                        selectedOrder.estado === "pending"
                           ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
-                          : selectedOrder.estado === "Completado"
+                          : selectedOrder.estado === "paid"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                             : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
                       }`}
                     >
-                      {selectedOrder.estado}
+                      {selectedOrder.estado === "pending" ? "Pendiente" : selectedOrder.estado === "paid" ? "Completado" : "Cancelado"}
                     </span>
                   </p>
-                  {selectedOrder.estado === "Cancelado" &&
+                  {selectedOrder.estado === "cancelled" &&
                     selectedOrder.motivo_rechazo && (
                       <p className="text-rose-600 dark:text-rose-400 mt-2 bg-rose-50 dark:bg-rose-500/10 p-2 rounded-lg text-xs font-medium">
                         Motivo Rechazo: {selectedOrder.motivo_rechazo}

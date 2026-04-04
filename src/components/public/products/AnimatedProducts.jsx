@@ -110,10 +110,8 @@ export default function AnimatedProducts({ products, categories }) {
     // 1. Filtrado por Categoría (Soporte Multi-categoría)
     if (hasCategoryFilter && activeCategory !== "all") {
       result = result.filter((product) => {
-        const categoryIds =
-          product.product_categories?.map((pc) => pc.category_id) || [];
+        const categoryIds = [];
 
-        // También incluimos category_id o subcategory_id por compatibilidad
         if (product.category_id) categoryIds.push(product.category_id);
         if (product.subcategory_id) categoryIds.push(product.subcategory_id);
         if (product.category?.id) categoryIds.push(product.category.id);

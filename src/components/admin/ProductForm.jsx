@@ -67,7 +67,6 @@ const ProductForm = ({
         // Extraer IDs de categorías si vienen de la tabla pivot
         // Ahora nos aseguramos de que el query traiga category_id
         const initialCategoryIds =
-          editingProduct.product_categories?.map((pc) => pc.category_id) ||
           (editingProduct.category_id ? [editingProduct.category_id] : []);
         const uniqueInitialCategoryIds = [
           ...new Set(initialCategoryIds.filter(Boolean)),
