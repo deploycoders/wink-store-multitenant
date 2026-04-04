@@ -1,9 +1,9 @@
 "use client";
 import { motion } from "framer-motion";
-import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+import { PLATFORM_BRAND_NAME } from "@/lib/siteConfig";
 
 export default function Loading() {
-  const brand = DEFAULT_SITE_NAME;
+  const brand = PLATFORM_BRAND_NAME;
   return (
     <>
       {/* Div de respaldo para mantener altura mínima */}

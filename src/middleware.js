@@ -1,32 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
-// Mapeo de rutas permitidas por rol
-const ROLE_PERMISSIONS = {
-  super_admin: [
-    "/admin",
-    "/admin/products",
-    "/admin/categories",
-    "/admin/orders",
-    "/admin/customers",
-    "/admin/history",
-    "/admin/settings",
-    "/admin/profile",
-  ],
-  editor: [
-    "/admin",
-    "/admin/products",
-    "/admin/categories",
-    "/admin/orders",
-    "/admin/profile",
-  ],
-  viewer: ["/admin", "/admin/orders", "/admin/profile"],
-  custom: ["/admin", "/admin/profile"], // Rol personalizado inicia con acceso básico
-};
-
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 120;
 const RATE_LIMIT_BLOCK_SECONDS = Math.ceil(RATE_LIMIT_WINDOW_MS / 1000);
+const ADMIN_LOGIN_PATH = "/access";
+const PLATFORM_LOGIN_PATH = "/platform-access";
 
 const globalForRateLimit = globalThis;
 if (!globalForRateLimit.__tenantRateLimitStore) {
@@ -38,10 +17,16 @@ const RESERVED_PREFIXES = new Set([
   "admin",
   "api",
   "access",
+  "platform-access",
   "_next",
   "register",
   "tenants",
 ]);
+
+const PLATFORM_ADMIN_EMAILS = (process.env.PLATFORM_ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean);
 
 const getClientIp = (req) => {
   const forwardedFor = req.headers.get("x-forwarded-for");
@@ -66,7 +51,55 @@ const resolveTenantScope = (pathname) => {
 const shouldRateLimitPath = (pathname) =>
   pathname.startsWith("/api") ||
   pathname.startsWith("/admin") ||
+  pathname.startsWith("/tenants") ||
   pathname.includes("/checkout");
+
+const hasPlatformScopeInMetadata = (user) => {
+  const scopeFromUserMetadata = user?.user_metadata?.access_scope;
+  const scopeFromAppMetadata = user?.app_metadata?.access_scope;
+  return scopeFromUserMetadata === "platform" || scopeFromAppMetadata === "platform";
+};
+
+const isPlatformAdminEmail = (email) => {
+  if (!email || PLATFORM_ADMIN_EMAILS.length === 0) return false;
+  return PLATFORM_ADMIN_EMAILS.includes(String(email).toLowerCase());
+};
+
+const isAuthPath = (pathname) =>
+  pathname === ADMIN_LOGIN_PATH || pathname === PLATFORM_LOGIN_PATH;
+
+const isAdminAreaPath = (pathname) =>
+  pathname.startsWith("/admin") && pathname !== ADMIN_LOGIN_PATH;
+
+const isPlatformAreaPath = (pathname) =>
+  pathname.startsWith("/tenants") && pathname !== PLATFORM_LOGIN_PATH;
+
+const getPortalContext = async (supabase, session) => {
+  if (!session?.user?.id) {
+    return { type: "anonymous", hasStaffProfile: false };
+  }
+
+  const { data: staffProfile, error: profileError } = await supabase
+    .from("staff_profiles")
+    .select("id")
+    .eq("id", session.user.id)
+    .maybeSingle();
+
+  if (profileError) {
+    return { type: "unknown", hasStaffProfile: false };
+  }
+
+  if (staffProfile?.id) {
+    return { type: "admin", hasStaffProfile: true };
+  }
+
+  const email = session.user.email;
+  if (hasPlatformScopeInMetadata(session.user) || isPlatformAdminEmail(email)) {
+    return { type: "platform", hasStaffProfile: false };
+  }
+
+  return { type: "unknown", hasStaffProfile: false };
+};
 
 const cleanupExpiredRateLimitEntries = (now) => {
   if (rateLimitStore.size < 5000) return;
@@ -127,9 +160,7 @@ export async function middleware(req) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
 
-  // Solo protegemos rutas que empiecen con /admin y NO sean el login
-  if (pathname.startsWith("/admin") && pathname !== "/access") {
-    // Crear cliente de Supabase para Middleware (Next.js 15+)
+  if (isAdminAreaPath(pathname) || isPlatformAreaPath(pathname) || isAuthPath(pathname)) {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -155,42 +186,53 @@ export async function middleware(req) {
       },
     );
 
-    // Obtener sesión del usuario
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
-    // 1. Si NO hay sesión, redirigir al login inmediatamente (EVITA EL FLICKER)
     if (!session) {
-      const loginUrl = new URL("/access", req.url);
-      // Opcional: guardar la url actual para volver después del login
-      // loginUrl.searchParams.set('next', pathname);
-      return NextResponse.redirect(loginUrl);
+      if (isAuthPath(pathname)) {
+        return res;
+      }
+
+      const loginTarget = isPlatformAreaPath(pathname)
+        ? PLATFORM_LOGIN_PATH
+        : ADMIN_LOGIN_PATH;
+      return NextResponse.redirect(new URL(loginTarget, req.url));
     }
 
-    // 2. Control de Acceso por Rol (Opcional: podrías consultar DB aquí para 'custom')
-    // Por ahora usamos la lógica de ROLE_PERMISSIONS estática para los roles básicos
-    // En una implementación avanzada, podrías obtener el perfil desde 'staff_profiles'
+    const portalContext = await getPortalContext(supabase, session);
 
-    /*
-    const { data: profile } = await supabase.from('staff_profiles').select('role').eq('id', session.user.id).single();
-    const userRole = profile?.role || "viewer";
-    */
-
-    // SIMULACIÓN: Para que el sistema no se bloquee mientras configuras DB,
-    // podrías dejar pasar a todos los logueados a /admin,
-    // y dejar que el layout haga el check fino.
-    // Pero si quieres protección rígida aquí:
-
-    /*
-    const userRole = session.user.app_metadata?.role || "viewer"; // Depende de tu esquema
-    const allowedRoutes = ROLE_PERMISSIONS[userRole] || [];
-    const isAllowed = allowedRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
-
-    if (!isAllowed && pathname !== '/admin') {
-      return NextResponse.redirect(new URL('/admin', req.url));
+    if (pathname === ADMIN_LOGIN_PATH) {
+      if (portalContext.type === "admin") {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
+      if (portalContext.type === "platform") {
+        return NextResponse.redirect(new URL("/tenants", req.url));
+      }
+      return res;
     }
-    */
+
+    if (pathname === PLATFORM_LOGIN_PATH) {
+      if (portalContext.type === "platform") {
+        return NextResponse.redirect(new URL("/tenants", req.url));
+      }
+      if (portalContext.type === "admin") {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
+      return res;
+    }
+
+    if (isAdminAreaPath(pathname) && portalContext.type !== "admin") {
+      return NextResponse.redirect(new URL(ADMIN_LOGIN_PATH, req.url));
+    }
+
+    if (isPlatformAreaPath(pathname) && portalContext.type !== "platform") {
+      if (portalContext.type === "admin") {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
+      return NextResponse.redirect(new URL(PLATFORM_LOGIN_PATH, req.url));
+    }
   }
 
   return res;

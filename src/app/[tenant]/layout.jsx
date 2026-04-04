@@ -3,6 +3,36 @@ import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollStop";
 import SiteConfigGate from "@/components/SiteConfigGate";
 import TenantBrandingLayout from "@/components/tenant/TenantBrandingLayout";
+import {
+  PLATFORM_BRAND_HOSTNAME,
+  DEFAULT_SITE_NAME,
+  formatSiteHostname,
+} from "@/lib/siteConfig";
+import { getSiteConfigServerCached } from "@/lib/siteConfig.server";
+
+export async function generateMetadata({ params }) {
+  const { tenant } = await params;
+  const { site_name } = await getSiteConfigServerCached({ tenantSlug: tenant });
+
+  const brand = site_name || DEFAULT_SITE_NAME;
+  const baseHost = PLATFORM_BRAND_HOSTNAME.replace(/^https?:\/\//, "");
+  const hostname = formatSiteHostname(brand) || baseHost;
+  const url = `https://${hostname}/${tenant}`;
+
+  return {
+    title: {
+      default: `${brand}`,
+      template: `%s | ${brand}`,
+    },
+    description: "Piezas esenciales con estética atemporal.",
+    openGraph: {
+      type: "website",
+      locale: "es_ES",
+      url,
+      siteName: brand,
+    },
+  };
+}
 
 export default async function TenantLayout({ children, params }) {
   const { tenant } = await params;

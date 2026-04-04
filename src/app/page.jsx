@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ShoppingBag, UserRound } from "lucide-react";
 import { getPublicSupabaseClient } from "@/lib/supabase/public";
+import { PLATFORM_BRAND_NAME } from "@/lib/siteConfig";
 
 const HERO_COPY =
   "Descubre nuestra colección curada de espacios independientes. Cada tienda ofrece una experiencia única y una selección exclusiva.";
@@ -56,13 +57,14 @@ async function getTenantCards() {
 
 export default async function TenantSelectorPage() {
   const tenantCards = await getTenantCards();
+  const platformBrand = PLATFORM_BRAND_NAME;
 
   return (
     <main className="min-h-screen bg-slate-50 text-zinc-700">
       <header className="border-b border-zinc-200/80 bg-slate-50/95 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto h-16 px-5 md:px-6 flex items-center justify-between">
           <p className="font-serif text-2xl md:text-3xl italic tracking-tight text-zinc-700">
-            Ecommerce Multitenant
+            {platformBrand}
           </p>
           <Link
             href="/access"
@@ -91,7 +93,7 @@ export default async function TenantSelectorPage() {
               <Link
                 key={tenant.tenant_id}
                 href={`/${tenant.slug}`}
-                className="group rounded-2xl border border-zinc-200 bg-white/80 hover:bg-white p-6 min-h-[220px] flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 anim-fade-up"
+                className="group rounded-2xl border border-zinc-200 bg-white/80 hover:bg-white p-6 min-h-55 flex flex-col items-center justify-center text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 anim-fade-up"
                 style={{ animationDelay: tenant.delay }}
               >
                 <div className="h-14 w-14 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-600 mb-5 group-hover:scale-105 transition-transform">
@@ -129,7 +131,7 @@ export default async function TenantSelectorPage() {
         className="max-w-6xl mx-auto px-5 md:px-6 pb-12 md:pb-14 anim-fade-up"
         style={{ animationDelay: "380ms" }}
       >
-        <div className="relative rounded-2xl overflow-hidden min-h-[220px] md:min-h-[320px] border border-zinc-200">
+        <div className="relative rounded-2xl overflow-hidden min-h-55 md:min-h-80 border border-zinc-200">
           <Image
             src="/banner-image2.jpg"
             alt="Atelier digital"
@@ -154,8 +156,7 @@ export default async function TenantSelectorPage() {
       <footer className="border-t border-zinc-200/80">
         <div className="max-w-6xl mx-auto px-5 md:px-6 py-6 flex flex-col md:flex-row items-center justify-between gap-3 text-[10px] md:text-xs tracking-[0.12em] uppercase text-zinc-500">
           <p>
-            © {new Date().getFullYear()} The Digital Atelier. All rights
-            reserved.
+            © {new Date().getFullYear()} {platformBrand}. All rights reserved.
           </p>
           <div className="flex items-center gap-4 md:gap-6">
             <Link

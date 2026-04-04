@@ -43,7 +43,12 @@ export async function POST(request) {
         email,
         password,
         email_confirm: true,
-        user_metadata: { full_name, tenant_id: invitation.tenant_id },
+        user_metadata: {
+          full_name,
+          tenant_id: invitation.tenant_id,
+          access_scope: "admin",
+        },
+        app_metadata: { access_scope: "admin" },
       });
 
     if (authError) throw authError;

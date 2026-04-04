@@ -7,6 +7,14 @@ export const DEFAULT_SITE_NAME = "Wink Store";
 export const DEFAULT_SITE_HOSTNAME = "wink-store.com";
 export const DEFAULT_SITE_HANDLE = "wink_store";
 
+const envPlatformBrandName = process.env.NEXT_PUBLIC_PLATFORM_BRAND_NAME;
+const envPlatformBrandHost = process.env.NEXT_PUBLIC_PLATFORM_BRAND_HOST;
+
+export const PLATFORM_BRAND_NAME =
+  String(envPlatformBrandName || "").trim() || DEFAULT_SITE_NAME;
+export const PLATFORM_BRAND_HOSTNAME =
+  String(envPlatformBrandHost || "").trim() || DEFAULT_SITE_HOSTNAME;
+
 const normalizeToSlug = (value, fallback) =>
   value
     ?.toLowerCase()

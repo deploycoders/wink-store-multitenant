@@ -1,12 +1,7 @@
 // src/app/layout.jsx
 import { Geist, Geist_Mono } from "next/font/google";
 import "@/app/globals.css";
-import {
-  DEFAULT_SITE_HOSTNAME,
-  DEFAULT_SITE_NAME,
-  formatSiteHostname,
-  getSiteConfig,
-} from "@/lib/siteConfig";
+import { DEFAULT_SITE_HOSTNAME, DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -17,10 +12,8 @@ const geistMono = Geist_Mono({
 const baseDescription = "Piezas esenciales con estética atemporal.";
 
 export async function generateMetadata() {
-  const { site_name } = await getSiteConfig();
-  const brand = site_name || DEFAULT_SITE_NAME;
-  const hostname =
-    formatSiteHostname(brand) || DEFAULT_SITE_HOSTNAME.replace(/^https?:\/\//, "");
+  const brand = DEFAULT_SITE_NAME;
+  const hostname = DEFAULT_SITE_HOSTNAME.replace(/^https?:\/\//, "");
   const url = `https://${hostname}`;
 
   return {
