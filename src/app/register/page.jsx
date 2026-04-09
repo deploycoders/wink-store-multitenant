@@ -6,7 +6,16 @@ import { getInvitation } from "@/services/tenants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle } from "lucide-react";
+import {
+  Loader2,
+  AlertCircle,
+  User,
+  Mail,
+  Lock,
+  ShieldCheck,
+  ArrowRight,
+  Store,
+} from "lucide-react";
 import Swal from "sweetalert2";
 
 function RegisterContent() {
@@ -53,49 +62,43 @@ function RegisterContent() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (formData.password !== formData.confirm_password) {
       Swal.fire({
         title: "Error",
         text: "Las contraseñas no coinciden",
         icon: "error",
+        confirmButtonColor: "#0f172a", // Slate 900
       });
       return;
     }
 
     setRegistering(true);
-
     try {
       const response = await fetch("/api/auth/register-invitation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          token,
-        }),
+        body: JSON.stringify({ ...formData, token }),
       });
 
       const result = await response.json();
-
       if (!response.ok) throw new Error(result.error || "Error al registrar");
 
       const tenantName =
-        result?.tenant?.nombre ||
-        result?.tenant?.name ||
-        result?.tenant_name ||
-        invitation?.tenants?.name ||
-        "tu tienda";
+        result?.tenant?.nombre || invitation?.tenants?.name || "tu tienda";
 
       Swal.fire({
         title: "¡Bienvenido!",
-        text: `Tu cuenta para la tienda "${tenantName}" ha sido creada con éxito.`,
+        text: `La cuenta para ${tenantName} ha sido activada.`,
         icon: "success",
-        confirmButtonColor: "#3b82f6",
-      }).then(() => {
-        router.push("/admin/login");
-      });
+        confirmButtonColor: "#0f172a",
+      }).then(() => router.push("/admin/login"));
     } catch (err) {
-      Swal.fire({ title: "Error", text: err.message, icon: "error" });
+      Swal.fire({
+        title: "Error",
+        text: err.message,
+        icon: "error",
+        confirmButtonColor: "#0f172a",
+      });
     } finally {
       setRegistering(false);
     }
@@ -103,119 +106,135 @@ function RegisterContent() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-100">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <p className="text-gray-500 mt-4 text-sm">Validando invitación...</p>
+      <div className="flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="h-10 w-10 animate-spin text-slate-900" />
+        <p className="text-slate-500 font-medium text-sm tracking-tight">
+          Preparando tu acceso...
+        </p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center p-8 bg-red-50 border border-red-100 rounded-3xl max-w-md w-full">
-        <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
-        <h2 className="text-xl font-bold text-red-900">Acceso Denegado</h2>
-        <p className="text-red-700 mt-2">{error}</p>
+      <div className="text-center p-10 bg-white border border-slate-200 rounded-3xl shadow-sm max-w-md w-full animate-in zoom-in-95 duration-300">
+        <AlertCircle className="h-12 w-12 text-slate-900 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+          Enlace no válido
+        </h2>
+        <p className="text-slate-500 mt-2 text-sm leading-relaxed">{error}</p>
         <Button
-          className="mt-6"
+          className="mt-8 w-full rounded-lg h-12 border-slate-900 text-slate-900 hover:bg-slate-50 transition-all font-bold"
           variant="outline"
           onClick={() => router.push("/")}
         >
-          Volver al Inicio
+          Volver al inicio
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="text-center mb-8">
-        <Badge className="mb-4 bg-blue-50 text-blue-700 border-blue-100">
-          Invitación para {invitation?.tenants?.name}
-        </Badge>
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">
-          Crea tu Cuenta Administradora
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-900 text-white mb-6 shadow-sm">
+          <Store className="h-3.5 w-3.5" />
+          <span className="text-[10px] font-bold uppercase tracking-widest">
+            {invitation?.tenants?.name || "Nueva Tienda"}
+          </span>
+        </div>
+        <h1 className="text-4xl font-black text-slate-900 tracking-tighter mb-2">
+          CREA TU CUENTA
         </h1>
+        <p className="text-slate-500 text-sm font-medium">
+          Ingresa tus credenciales para administrar la tienda.
+        </p>
       </div>
 
-      <div className="bg-white p-8 rounded-3xl shadow-xl border border-gray-100">
+      <div className="bg-white p-8 md:p-10 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.04)] border border-slate-100">
         <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">
-              Nombre Completo
-            </label>
-            <Input
-              placeholder="Ej. Juan Pérez"
-              value={formData.full_name}
-              onChange={(e) =>
-                setFormData({ ...formData, full_name: e.target.value })
-              }
-              required
-            />
+          <div className="space-y-4">
+            {/* Input Wrapper Component Style */}
+            {[
+              {
+                label: "Nombre Completo",
+                id: "full_name",
+                type: "text",
+                icon: User,
+                placeholder: "Tu nombre",
+              },
+              {
+                label: "Email",
+                id: "email",
+                type: "email",
+                icon: Mail,
+                placeholder: "correo@ejemplo.com",
+              },
+              {
+                label: "Contraseña",
+                id: "password",
+                type: "password",
+                icon: Lock,
+                placeholder: "••••••••",
+              },
+              {
+                label: "Confirmar",
+                id: "confirm_password",
+                type: "password",
+                icon: ShieldCheck,
+                placeholder: "••••••••",
+              },
+            ].map((field) => (
+              <div key={field.id} className="space-y-1.5">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  {field.label}
+                </label>
+                <div className="relative group">
+                  <field.icon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 group-focus-within:text-slate-900 transition-colors" />
+                  <Input
+                    type={field.type}
+                    className="pl-12 h-12 bg-white border-slate-200 rounded-lg focus:border-slate-900 focus:ring-0 transition-all placeholder:text-slate-300 text-sm font-medium"
+                    placeholder={field.placeholder}
+                    value={formData[field.id]}
+                    onChange={(e) =>
+                      setFormData({ ...formData, [field.id]: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">
-              Correo Electrónico
-            </label>
-            <Input
-              type="email"
-              placeholder="juan@ejemplo.com"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">
-              Contraseña
-            </label>
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-700">
-              Confirmar Contraseña
-            </label>
-            <Input
-              type="password"
-              placeholder="••••••••"
-              value={formData.confirm_password}
-              onChange={(e) =>
-                setFormData({ ...formData, confirm_password: e.target.value })
-              }
-              required
-            />
-          </div>
+
           <Button
             type="submit"
-            className="w-full bg-blue-600 text-white hover:bg-blue-700 h-12"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-lg font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 transition-all hover:translate-y-[-2px] active:translate-y-[0px] flex items-center justify-center gap-3 group mt-4 cursor-pointer"
             disabled={registering}
           >
             {registering ? (
-              <Loader2 className="animate-spin mr-2 h-4 w-4" />
+              <Loader2 className="animate-spin h-5 w-5" />
             ) : (
-              "Comenzar Ahora"
+              <>
+                Confirmar Registro
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </>
             )}
           </Button>
         </form>
       </div>
+
+      <p className="text-center mt-10 text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-loose">
+        The Digital Atelier — v1.0 <br />
+        <span className="text-slate-300">Soporte Técnico Especializado</span>
+      </p>
     </div>
   );
 }
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <Suspense fallback={<Loader2 className="animate-spin" />}>
+    <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6">
+      <Suspense fallback={<Loader2 className="animate-spin text-slate-900" />}>
         <RegisterContent />
       </Suspense>
     </div>

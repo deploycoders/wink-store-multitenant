@@ -14,16 +14,28 @@ import {
   ExternalLink,
   Power,
   PowerOff,
+  Mail,
   Loader2,
 } from "lucide-react";
 import { useState } from "react";
-import { updateTenant } from "@/services/tenants";
+import {
+  getUserLimitForPlan,
+  normalizePlanType,
+  updateTenant,
+} from "@/services/tenants";
 import Swal from "sweetalert2";
 import { buildClientUrl } from "@/lib/url";
 
-export function TenantTable({ tenants, loading, onTenantUpdated }) {
+export function TenantTable({
+  tenants,
+  loading,
+  onTenantUpdated,
+  pendingInvitations,
+  onInviteTenant,
+}) {
   const [copiedId, setCopiedId] = useState(null);
   const [statusLoading, setStatusLoading] = useState(null);
+  const [planLoading, setPlanLoading] = useState(null);
 
   const getTenantUrl = (slug) => {
     return buildClientUrl(`/${slug}`);
@@ -52,6 +64,37 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
       Swal.fire("Error", "No se pudo cambiar el estado", "error");
     } finally {
       setStatusLoading(null);
+    }
+  };
+
+  const updatePlan = async (tenant, nextPlanTypeRaw) => {
+    if (!tenant?.tenant_id) return;
+
+    const nextPlanType = normalizePlanType(nextPlanTypeRaw);
+    const maxUsers = getUserLimitForPlan(nextPlanType);
+    setPlanLoading(tenant.tenant_id);
+
+    try {
+      const updated = await updateTenant(tenant.tenant_id, {
+        plan_type: nextPlanType,
+        max_users: maxUsers,
+        user_limit: maxUsers,
+      });
+      onTenantUpdated?.(updated);
+
+      Swal.fire({
+        title: "Plan actualizado",
+        text: `Plan: ${nextPlanType} | Límite: ${maxUsers} usuario(s)`,
+        icon: "success",
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 2500,
+      });
+    } catch (error) {
+      Swal.fire("Error", "No se pudo actualizar el plan", "error");
+    } finally {
+      setPlanLoading(null);
     }
   };
 
@@ -116,29 +159,27 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
                 </div>
               </TableCell>
               <TableCell className="text-center">
-                <Badge
-                  variant={
-                    tenant.plan_type === "Gold"
-                      ? "default"
-                      : tenant.plan_type === "Silver"
-                        ? "secondary"
-                        : "outline"
-                  }
-                  className={
-                    tenant.plan_type === "Gold"
-                      ? "bg-amber-100 text-amber-800 hover:bg-amber-100 border-amber-200"
-                      : tenant.plan_type === "Silver"
-                        ? "bg-slate-100 text-slate-800 hover:bg-slate-100 border-slate-200"
-                        : "bg-orange-50 text-orange-700 hover:bg-orange-50 border-orange-100"
-                  }
-                >
-                  {tenant.plan_type}
-                </Badge>
+                <div className="flex items-center justify-center gap-2">
+                  <select
+                    value={normalizePlanType(tenant.plan_type)}
+                    onChange={(e) => updatePlan(tenant, e.target.value)}
+                    disabled={planLoading === tenant.tenant_id}
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200"
+                    title="Cambiar plan"
+                  >
+                    <option value="Bronze">Bronze</option>
+                    <option value="Silver">Silver</option>
+                    <option value="Gold">Gold</option>
+                  </select>
+                  {planLoading === tenant.tenant_id ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                  ) : null}
+                </div>
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex flex-col items-center">
                   <span className="text-sm font-medium">
-                    0 / {tenant.max_users || "—"}
+                    0 / {tenant.max_users || tenant.user_limit || "—"}
                   </span>
                   <div className="w-16 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
                     <div className="bg-blue-500 h-full w-0" />
@@ -156,9 +197,24 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
               <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   <button
+                    onClick={() => onInviteTenant?.(tenant)}
+                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                      pendingInvitations?.get?.(tenant.tenant_id)
+                        ? "text-green-600 hover:bg-green-50"
+                        : "text-gray-500 hover:bg-gray-100"
+                    }`}
+                    title={
+                      pendingInvitations?.get?.(tenant.tenant_id)
+                        ? "Invitación pendiente"
+                        : "Generar invitación"
+                    }
+                  >
+                    <Mail className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => toggleStatus(tenant)}
                     disabled={statusLoading === tenant.tenant_id}
-                    className={`p-2 rounded-lg transition-colors ${
+                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
                       tenant.status === "Active"
                         ? "text-red-500 hover:bg-red-50"
                         : "text-green-500 hover:bg-green-50"
@@ -182,7 +238,7 @@ export function TenantTable({ tenants, loading, onTenantUpdated }) {
                         tenant.tenant_id,
                       )
                     }
-                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+                    className="p-2 cursor-pointer hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
                     title="Copiar URL"
                   >
                     {copiedId === tenant.tenant_id ? (
