@@ -153,17 +153,17 @@ export async function middleware(req) {
     },
   );
 
-  // 2. REFRESCAR SESIÓN
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // 3. LÓGICA DE PROTECCIÓN Y REDIRECCIONES
+  // 2. LÓGICA DE PROTECCIÓN Y REDIRECCIONES
   if (
     isAdminAreaPath(pathname) ||
     isPlatformAreaPath(pathname) ||
     isAuthPath(pathname)
   ) {
+    // REFRESCAR SESIÓN SOLO AQUÍ PARA AHORRAR EDGE REQUESTS
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
     if (!session) {
       if (isAuthPath(pathname)) return res;
       const loginTarget = isPlatformAreaPath(pathname)
@@ -206,6 +206,6 @@ export async function middleware(req) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|public|favicon.ico|manifest.json|robots.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|woff|woff2|ttf|otf|mp4|webm|csv)$).*)",
   ],
 };

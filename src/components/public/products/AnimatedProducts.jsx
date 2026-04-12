@@ -210,6 +210,7 @@ export default function AnimatedProducts({ products, categories }) {
             <div className="pt-4">
               <Link
                 href={`${baseUrl}/products`}
+                prefetch={false}
                 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink border-b-2 border-ink pb-2 hover:text-honey-dark hover:border-honey-dark transition-all"
               >
                 Explorar Colección Completa

@@ -1,6 +1,6 @@
 import AnimatedHeaderProducts from "@/components/public/products/AnimatedHeaderProduct";
 import AnimatedProducts from "@/components/public/products/AnimatedProducts";
-import { getAllCategoriesFlat } from "@/services/categories";
+import { getPublicCategoriesFlat } from "@/services/categories";
 import { getProducts } from "@/services/products";
 import { DEFAULT_SITE_NAME, getSiteConfig } from "@/lib/siteConfig";
 import { createClient } from "@/lib/supabase/server";
@@ -32,7 +32,7 @@ export default async function ProductsPage({ params }) {
   // 2. Ejecutamos ambas peticiones en paralelo para mayor velocidad
   const [products, categories] = await Promise.all([
     getProducts(tenantId),
-    getAllCategoriesFlat(tenantId),
+    getPublicCategoriesFlat(tenantId),
   ]);
 
   return (
