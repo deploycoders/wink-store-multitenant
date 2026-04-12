@@ -31,9 +31,9 @@ export default function HistoryPage() {
     }
 
     const { data, error } = await supabase
-      .from("bitacora")
+      .from("audit_logs")
       .select("*")
-      .contains("meta", { tenant_id: tenantId })
+      .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500);
 
@@ -51,10 +51,10 @@ export default function HistoryPage() {
 
     /* ── Realtime: escuchar INSERT en bitácora ── */
     const channel = supabase
-      .channel("bitacora-realtime")
+      .channel("audit_logs-realtime")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "bitacora" },
+        { event: "INSERT", schema: "public", table: "audit_logs" },
         (payload) => {
           setEntries((prev) => [payload.new, ...prev]);
         },
@@ -69,13 +69,13 @@ export default function HistoryPage() {
   /* ── Filtros en cliente ── */
   const filtered = useMemo(() => {
     return entries.filter((e) => {
-      const matchTipo = tipo === "todos" || e.tipo === tipo;
-      const matchAccion = accion === "todas" || e.accion === accion;
+      const matchTipo = tipo === "todos" || e.module === tipo;
+      const matchAccion = accion === "todas" || e.action === accion;
       const q = search.toLowerCase();
       const matchSearch =
         !q ||
-        e.descripcion?.toLowerCase().includes(q) ||
-        e.usuario_nombre?.toLowerCase().includes(q);
+        e.details?.description?.toLowerCase().includes(q) ||
+        e.details?.user_name?.toLowerCase().includes(q);
       return matchTipo && matchAccion && matchSearch;
     });
   }, [entries, search, tipo, accion]);
@@ -88,8 +88,8 @@ export default function HistoryPage() {
     return {
       total: entries.length,
       hoy: hoyEntries.length,
-      ventas: entries.filter((e) => e.tipo === "venta").length,
-      usuarios: entries.filter((e) => e.tipo === "usuario").length,
+      ventas: entries.filter((e) => e.module === "venta").length,
+      usuarios: entries.filter((e) => e.module === "usuario").length,
     };
   }, [entries]);
 

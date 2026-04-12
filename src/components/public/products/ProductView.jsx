@@ -31,7 +31,7 @@ export default function ProductView({ product }) {
   const productNotices = (commerce.product_notices || [])
     .filter(Boolean)
     .slice(0, 3);
-  // Desestructuramos product_variants que es como viene de tu consulta en Supabase
+
   const {
     name,
     description,
@@ -43,56 +43,105 @@ export default function ProductView({ product }) {
   } = product;
 
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedSize, setSelectedSize] = useState(null);
   const addItem = useCartStore((state) => state.addItem);
   const router = useRouter();
-  const selectedVariant = (product_variants || []).find(
-    (variant) => variant.value === selectedSize,
-  );
+
+  // ----------------------------------------------------------------
+  // LÓGICA DE VARIANTES — nuevo esquema: attributes (jsonb)
+  // Ej de variante: { id, attributes: { Color: "Verde", Talla: "S" },
+  //                   price_override: 5, stock_quantity: 3, sku: "..." }
+  // ----------------------------------------------------------------
+
+  // Agrupa los valores únicos por atributo:
+  // { "Color": Set(["Verde","Blanco","Negro"]), "Talla": Set(["S","M","L"]) }
+  const attributeGroups = {};
+  (product_variants || []).forEach((v) => {
+    if (!v.attributes) return;
+    Object.entries(v.attributes).forEach(([key, val]) => {
+      if (!attributeGroups[key]) attributeGroups[key] = new Set();
+      attributeGroups[key].add(String(val));
+    });
+  });
+  const attributeKeys = Object.keys(attributeGroups);
+  const hasVariants = attributeKeys.length > 0;
+
+  // Selección actual: { Color: "Verde", Talla: "S" }
+  const [selectedAttrs, setSelectedAttrs] = useState({});
+
+  // Variante que coincide exactamente con lo seleccionado
+  const selectedVariant = hasVariants
+    ? (product_variants || []).find((v) => {
+        if (!v.attributes) return false;
+        return attributeKeys.every(
+          (key) => String(v.attributes[key]) === String(selectedAttrs[key]),
+        );
+      }) || null
+    : null;
+
+  // ¿Está disponible un valor dado el resto de atributos ya seleccionados?
+  const isOptionAvailable = (key, val) =>
+    (product_variants || []).some((v) => {
+      if (!v.attributes || String(v.attributes[key]) !== String(val))
+        return false;
+      return attributeKeys
+        .filter((k) => k !== key && selectedAttrs[k])
+        .every((k) => String(v.attributes[k]) === String(selectedAttrs[k]));
+    });
+
+  const handleSelectAttr = (key, val) => {
+    setSelectedAttrs((prev) => ({ ...prev, [key]: val }));
+  };
+
+  const allAttrsSelected =
+    !hasVariants || attributeKeys.every((k) => selectedAttrs[k]);
+
+  // ----------------------------------------------------------------
+  // PRECIOS
+  // ----------------------------------------------------------------
   const regularPrice = Number(price) || 0;
   const offerPrice = Number(discount_price) || 0;
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
   const basePrice = hasActiveOffer ? offerPrice : regularPrice;
-  const priceAdjustment = Number(selectedVariant?.price_adjustment) || 0;
-  const finalPrice = basePrice + priceAdjustment;
-  const finalRegularPrice = regularPrice + priceAdjustment;
+  const priceOverride = Number(
+    selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0,
+  );
+  const finalPrice = basePrice + priceOverride;
+  const finalRegularPrice = regularPrice + priceOverride;
 
   const productImages = Array.isArray(images) ? images : ["/placeholder.jpg"];
 
+  // ----------------------------------------------------------------
+  // CARRITO
+  // ----------------------------------------------------------------
   const handleAddToCart = () => {
-    // CORRECCIÓN: Usar 'product_variants' en lugar de 'variants'
-    if (product_variants && product_variants.length > 0 && !selectedSize) {
+    if (hasVariants && !allAttrsSelected) {
       Swal.fire({
         title: "¡Atención!",
-        text: "Selecciona una talla para poder continuar.",
+        text: "Selecciona todas las opciones para continuar.",
         icon: "warning",
         confirmButtonColor: "#1A1A1A",
         background: "#FBF9F6",
         color: "#1A1A1A",
-        borderRadius: "2rem",
       });
       return false;
     }
-
-    addItem(product, 1, selectedSize, selectedVariant);
+    // Pasamos un label legible de la combinación (ej: "Verde / S")
+    const variantLabel = hasVariants
+      ? Object.values(selectedAttrs).join(" / ")
+      : null;
+    addItem(product, 1, variantLabel, selectedVariant);
     return true;
   };
 
-  useEffect(() => {
-    console.log("Estado de talla actualizado:", selectedSize);
-  }, [selectedSize]);
-
   const handleBuyNow = () => {
     const added = handleAddToCart();
-    if (added) {
-      router.push(`${baseUrl}/checkout`);
-    }
+    if (added) router.push(`${baseUrl}/checkout`);
   };
 
   return (
     <main className="max-w-7xl mx-auto px-6 md:px-12 py-8 md:py-16">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-start">
-        {/* --- GALERÍA --- */}
+        {/* ---- GALERÍA ---- */}
         <div className="md:col-span-7 flex flex-col lg:flex-row gap-4 w-full">
           <div className="flex lg:flex-col gap-3 overflow-x-auto lg:overflow-x-visible lg:w-20 order-1 lg:order-0">
             {productImages.map((img, index) => (
@@ -129,7 +178,7 @@ export default function ProductView({ product }) {
           </div>
         </div>
 
-        {/* --- INFORMACIÓN --- */}
+        {/* ---- INFORMACIÓN ---- */}
         <div className="md:col-span-5 flex flex-col space-y-4">
           <section>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight uppercase">
@@ -145,10 +194,10 @@ export default function ProductView({ product }) {
                 ${finalPrice.toFixed(2)}
               </p>
             </div>
-            {priceAdjustment > 0 && (
+            {priceOverride > 0 && (
               <p className="mt-1 text-xs font-medium text-amber-700">
-                Esta variante tiene un recargo de +${priceAdjustment.toFixed(2)}{" "}
-                por {selectedVariant?.name?.toLowerCase() || "atributo"}.
+                Esta combinación tiene un recargo de +$
+                {priceOverride.toFixed(2)}.
               </p>
             )}
             {hasActiveOffer && (
@@ -164,46 +213,50 @@ export default function ProductView({ product }) {
             </p>
           )}
 
-          {/* VARIANTES DE TALLA */}
-          {/* VARIANTES DE TALLA */}
-          {product_variants && product_variants.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-bold uppercase tracking-wider text-ink">
-                  Seleccionar Talla
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                {product_variants.map((v) => {
-                  const isSelected = selectedSize === v.value;
-                  // Verifica en tu base de datos si stock_adjustment tiene valor
-                  const isOutOfStock =
-                    v.stock_adjustment !== null && v.stock_adjustment <= 0;
-
-                  return (
-                    <button
-                      key={v.id}
-                      type="button" // Importante para evitar submits accidentales
-                      disabled={isOutOfStock}
-                      onClick={() => {
-                        console.log("Seleccionando talla:", v.value); // Debug para consola
-                        setSelectedSize(v.value);
-                      }}
-                      className={cn(
-                        "min-w-15 h-12 rounded-md uppercase transition-all duration-200 border text-xs font-bold",
-                        "cursor-pointer disabled:cursor-not-allowed select-none", // Asegura el cursor
-                        isSelected
-                          ? "bg-black text-white border-black shadow-md"
-                          : "bg-transparent text-black border-gray-200 hover:border-black",
-                        isOutOfStock && "opacity-20 italic",
-                      )}
-                    >
-                      {v.value}
-                    </button>
-                  );
-                })}
-              </div>
+          {/* ---- SELECTORES DE VARIANTES ---- */}
+          {hasVariants ? (
+            <div className="space-y-4">
+              {attributeKeys.map((attrKey) => (
+                <div key={attrKey} className="space-y-2">
+                  <span className="text-sm font-bold uppercase tracking-wider text-ink">
+                    {attrKey}
+                    {selectedAttrs[attrKey] && (
+                      <span className="ml-2 font-normal normal-case text-muted-foreground">
+                        — {selectedAttrs[attrKey]}
+                      </span>
+                    )}
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {[...attributeGroups[attrKey]].map((val) => {
+                      const available = isOptionAvailable(attrKey, val);
+                      const isSelected = selectedAttrs[attrKey] === val;
+                      return (
+                        <button
+                          key={val}
+                          type="button"
+                          disabled={!available}
+                          onClick={() => handleSelectAttr(attrKey, val)}
+                          className={cn(
+                            "min-w-14 h-11 px-3 rounded-md uppercase transition-all duration-200 border text-xs font-bold",
+                            "cursor-pointer disabled:cursor-not-allowed select-none",
+                            isSelected
+                              ? "bg-black text-white border-black shadow-md"
+                              : "bg-transparent text-black border-gray-200 hover:border-black",
+                            !available && "opacity-25 line-through",
+                          )}
+                        >
+                          {val}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+              {!allAttrsSelected && (
+                <p className="text-xs text-muted-foreground italic">
+                  Selecciona todas las opciones para continuar.
+                </p>
+              )}
             </div>
           ) : (
             <p className="text-xs text-honey-dark italic">
@@ -211,6 +264,7 @@ export default function ProductView({ product }) {
             </p>
           )}
 
+          {/* ---- BOTONES ---- */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pt-4">
             <Button
               size="lg"

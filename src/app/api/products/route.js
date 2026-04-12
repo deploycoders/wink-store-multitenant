@@ -5,32 +5,41 @@ import { resolveTenantContext } from "@/lib/tenantContext";
 const normalizeProductVariants = (variants = []) =>
   (variants || []).map((variant) => ({
     ...variant,
-    name: variant.name || variant.attribute_name || "",
-    value: variant.value || variant.attribute_value || "",
+    // La tabla usa 'attributes' (jsonb) con el nuevo VariantManager
+    attributes: variant.attributes || {},
     price_adjustment:
       Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
-    stock_adjustment:
-      Number(variant.stock_adjustment ?? variant.stock_quantity ?? 0) || 0,
+    stock_quantity:
+      Number(variant.stock_quantity ?? variant.stock_adjustment ?? 0) || 0,
   }));
 
-const mapProductForClient = (product) => ({
-  ...product,
-  product_variants: normalizeProductVariants(product.product_variants),
-});
+const mapProductForClient = (product) => {
+  const stockObj = Array.isArray(product.product_stock)
+    ? product.product_stock[0]
+    : product.product_stock;
+
+  const categoryIds = Array.isArray(product.product_categories)
+    ? product.product_categories.map((pc) => pc.category?.id).filter(Boolean)
+    : [];
+
+  return {
+    ...product,
+    stock: stockObj ? stockObj.quantity : 0,
+    category_ids: categoryIds,
+    product_variants: normalizeProductVariants(product.product_variants),
+  };
+};
 
 const mapVariantToDb = (variant, { tenantId, productId }) => ({
   product_id: productId,
   tenant_id: tenantId,
-  attribute_name: String(
-    variant.name || variant.attribute_name || "Variante",
-  ).trim(),
-  attribute_value: String(
-    variant.value || variant.attribute_value || "",
-  ).trim(),
+  // El VariantManager genera { attributes: { Color: "Rojo", Talla: "M" } }
+  // La tabla product_variants tiene una columna 'attributes' de tipo jsonb.
+  attributes: variant.attributes || {},
   price_override:
     Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
   stock_quantity:
-    Number(variant.stock_adjustment ?? variant.stock_quantity ?? 0) || 0,
+    Number(variant.stock_quantity ?? variant.stock_adjustment ?? 0) || 0,
   sku: variant.sku || null,
 });
 
@@ -43,11 +52,17 @@ export async function GET(request) {
       fallbackTenantId: tenantFromQuery,
     });
 
+    // GET /api/products
     let query = supabase.from("products").select(`
   *,
-  category:categories!category_id(id, name),
-  subcategory:categories!subcategory_id(id, name),
-  product_categories(category_id),
+  product_categories!product_categories_product_id_fkey (
+    category_id,
+    category:categories!product_categories_category_id_fkey (
+      id,
+      name
+    )
+  ),
+  product_stock(quantity),
   product_variants(*)
 `);
 
@@ -85,7 +100,6 @@ export async function POST(request) {
       stock,
       images,
       category_ids = [], // Array de categorías para la tabla pivot
-      subcategory_id,
       status,
       featured,
       slug,
@@ -131,9 +145,7 @@ export async function POST(request) {
           description,
           price: parseFloat(price),
           discount_price: discount_price ? parseFloat(discount_price) : null,
-          stock: parseInt(stock) || 0,
           images: images || [],
-          subcategory_id: subcategory_id || null,
           status: status || "draft",
           featured: featured || false,
           slug:
@@ -153,31 +165,39 @@ export async function POST(request) {
     if (pError) throw pError;
     const productId = product.id;
 
-    // 2. Insertar categorías en la tabla pivot (product_categories)
-    const uniqueCategoryIds = normalizedCategoryIds;
+    const categoryRelations = normalizedCategoryIds.map((catId) => ({
+      product_id: productId,
+      category_id: catId,
+      tenant_id: tenantId,
+    }));
 
-    if (uniqueCategoryIds.length > 0) {
-      const pcToInsert = uniqueCategoryIds.map((catId) => ({
-        product_id: productId,
-        category_id: catId,
-        tenant_id: tenantId, // <--- No olvides el tenant_id aquí también
-      }));
-
-      const { error: pcError } = await supabase
+    if (categoryRelations.length > 0) {
+      const { error: catError } = await supabase
         .from("product_categories")
-        .insert(pcToInsert);
+        .insert(categoryRelations);
 
-      if (pcError) {
-        console.error("Error inserting product categories:", pcError);
-        // Opcional: throw pcError si quieres que la creación falle si no hay categorías
-      }
+      if (catError) throw new Error(`Error en categorías: ${catError.message}`);
+    }
+
+    const parsedStock = parseInt(stock) || 0;
+    if (parsedStock > 0) {
+      const { error: stockEx } = await supabase.from("stock_movements").insert({
+        tenant_id: tenantId,
+        product_id: productId,
+        movement_type: "adjustment",
+        quantity: parsedStock,
+        reason: "Initial stock creation",
+        reference_type: "products_api",
+      });
+      if (stockEx) console.warn("Failed creating initial stock:", stockEx);
     }
 
     // 3. Insertar variantes si existen
     if (variants.length > 0) {
       const variantsToInsert = variants
         .map((v) => mapVariantToDb(v, { tenantId, productId }))
-        .filter((v) => v.attribute_value);
+        // Solo descartamos si no tiene ningún atributo definido
+        .filter((v) => v.attributes && Object.keys(v.attributes).length > 0);
 
       if (variantsToInsert.length > 0) {
         const { error: vError } = await supabase

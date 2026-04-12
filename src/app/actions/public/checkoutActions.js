@@ -9,7 +9,7 @@ const normalizeVariantValue = (value) =>
     .trim()
     .toLowerCase();
 
-const CUSTOMER_TABLE = "clientes";
+const CUSTOMER_TABLE = "customers";
 
 const getErrorMessage = (error) =>
   error?.message || error?.details || "Error desconocido";
@@ -37,17 +37,13 @@ const findExistingCustomer = async (supabase, idNumber, tenantId) =>
   supabase
     .from(CUSTOMER_TABLE)
     .select("id")
-    .eq("cedula", idNumber)
+    .eq("id_number", idNumber)
     .eq("tenant_id", tenantId)
     .limit(1)
     .single();
 
 const insertCustomer = async (supabase, payload) =>
-  supabase
-    .from(CUSTOMER_TABLE)
-    .insert([payload])
-    .select("id")
-    .single();
+  supabase.from(CUSTOMER_TABLE).insert([payload]).select("id").single();
 
 const createOrderWithFallback = async (supabase, payload) => {
   const orderPayload = { ...payload };
@@ -104,7 +100,9 @@ export async function processCheckoutOrder(formData, items, total) {
     }
 
     if (!tenantId) {
-      throw new Error("No se pudo resolver el tenant para registrar el pedido.");
+      throw new Error(
+        "No se pudo resolver el tenant para registrar el pedido.",
+      );
     }
 
     const { data: tenantData, error: tenantError } = await supabase
@@ -132,13 +130,30 @@ export async function processCheckoutOrder(formData, items, total) {
 
     if (existingCustomer) {
       clienteId = existingCustomer.id;
+
+      // Actualizar los datos del cliente existente para asegurar que siempre haya email o teléfono actualizado
+      const { error: updateCustomerError } = await supabase
+        .from(CUSTOMER_TABLE)
+        .update({
+          full_name: formData.name,
+          phone: normalizedCustomerPhone,
+          ...(formData.email ? { email: formData.email } : {}),
+        })
+        .eq("id", clienteId)
+        .eq("tenant_id", tenantId);
+
+      if (updateCustomerError) {
+        console.warn(
+          `Error al actualizar datos del cliente existente (${clienteId}): ${getErrorMessage(updateCustomerError)}`,
+        );
+      }
     } else if (searchError && isNoRowsError(searchError)) {
       const { data: newCustomer, error: insertCustomerError } =
         await insertCustomer(supabase, {
           tenant_id: tenantId,
-          cedula: formData.idNumber,
-          nombre_completo: formData.name,
-          telefono: normalizedCustomerPhone,
+          id_number: formData.idNumber,
+          full_name: formData.name,
+          phone: normalizedCustomerPhone,
           email: formData.email || null,
         });
 
@@ -185,7 +200,7 @@ export async function processCheckoutOrder(formData, items, total) {
 
       const { data: productData, error: productError } = await supabase
         .from("products")
-        .select("id, name, stock")
+        .select("id, name, product_stock(quantity)")
         .eq("id", item.id)
         .eq("tenant_id", tenantId)
         .single();
@@ -198,7 +213,7 @@ export async function processCheckoutOrder(formData, items, total) {
 
       const { data: variantsData, error: variantsError } = await supabase
         .from("product_variants")
-        .select("id, attribute_value, stock_quantity")
+        .select("id, attributes, stock_quantity")
         .eq("product_id", item.id)
         .eq("tenant_id", tenantId);
 
@@ -208,7 +223,8 @@ export async function processCheckoutOrder(formData, items, total) {
         );
       }
 
-      const hasVariants = Array.isArray(variantsData) && variantsData.length > 0;
+      const hasVariants =
+        Array.isArray(variantsData) && variantsData.length > 0;
       const selectedVariantValue = normalizeVariantValue(item.variant);
 
       if (hasVariants) {
@@ -218,11 +234,22 @@ export async function processCheckoutOrder(formData, items, total) {
           );
         }
 
-        const matchedVariant = variantsData.find(
-          (variant) =>
-            normalizeVariantValue(variant.attribute_value) ===
-            selectedVariantValue,
-        );
+        let matchedVariant = null;
+
+        // 1. Prioridad: Buscar por ID directo (agregado recientemente al carrito)
+        if (item.variant_id) {
+          matchedVariant = variantsData.find((v) => v.id === item.variant_id);
+        }
+
+        // 2. Fallback: Buscar comparando el string (ej: "verde / m")
+        if (!matchedVariant) {
+          matchedVariant = variantsData.find((v) => {
+            if (!v.attributes) return false;
+            // Unimos los valores del JSON igual que lo hace ProductView
+            const values = Object.values(v.attributes).join(" / ");
+            return normalizeVariantValue(values) === selectedVariantValue;
+          });
+        }
 
         if (!matchedVariant) {
           throw new Error(
@@ -233,7 +260,7 @@ export async function processCheckoutOrder(formData, items, total) {
         const currentVariantStock = Number(matchedVariant.stock_quantity) || 0;
         if (currentVariantStock < quantity) {
           throw new Error(
-            `Stock insuficiente en ${productData.name} (${matchedVariant.attribute_value}). Disponible: ${currentVariantStock}.`,
+            `Stock insuficiente en ${productData.name} (Variante seleccionada). Disponible: ${currentVariantStock}.`,
           );
         }
 
@@ -250,44 +277,48 @@ export async function processCheckoutOrder(formData, items, total) {
           );
         }
 
-        const recalculatedTotalStock = variantsData.reduce(
-          (acc, variant) =>
-            acc +
-            (variant.id === matchedVariant.id
-              ? nextVariantStock
-              : Number(variant.stock_quantity) || 0),
-          0,
-        );
+        const { error: movementError } = await supabase
+          .from("stock_movements")
+          .insert({
+            tenant_id: tenantId,
+            product_id: item.id,
+            variant_id: matchedVariant.id,
+            movement_type: "sale",
+            quantity: quantity,
+            reason: "Checkout order",
+            reference_type: "checkout",
+          });
 
-        const { error: updateProductError } = await supabase
-          .from("products")
-          .update({ stock: Math.max(0, recalculatedTotalStock) })
-          .eq("id", item.id)
-          .eq("tenant_id", tenantId);
-
-        if (updateProductError) {
+        if (movementError) {
           throw new Error(
-            `Error actualizando stock global de ${productData.name}: ${updateProductError.message}`,
+            `Error actualizando stock global de ${productData.name}: ${movementError.message}`,
           );
         }
       } else {
-        const currentStock = Number(productData.stock) || 0;
+        const stockObj = Array.isArray(productData.product_stock)
+          ? productData.product_stock[0]
+          : productData.product_stock;
+        const currentStock = stockObj ? Number(stockObj.quantity) : 0;
         if (currentStock < quantity) {
           throw new Error(
             `Stock insuficiente para ${productData.name}. Disponible: ${currentStock}.`,
           );
         }
 
-        const nextStock = currentStock - quantity;
-        const { error: updateProductError } = await supabase
-          .from("products")
-          .update({ stock: Math.max(0, nextStock) })
-          .eq("id", item.id)
-          .eq("tenant_id", tenantId);
+        const { error: movementError } = await supabase
+          .from("stock_movements")
+          .insert({
+            tenant_id: tenantId,
+            product_id: item.id,
+            movement_type: "sale",
+            quantity: quantity,
+            reason: "Checkout order",
+            reference_type: "checkout",
+          });
 
-        if (updateProductError) {
+        if (movementError) {
           throw new Error(
-            `Error actualizando stock de ${productData.name}: ${updateProductError.message}`,
+            `Error actualizando stock de ${productData.name}: ${movementError.message}`,
           );
         }
       }
@@ -297,9 +328,11 @@ export async function processCheckoutOrder(formData, items, total) {
     const orderPayload = {
       tenant_id: tenantId,
       total,
-      estado: "Pendiente",
-      cliente_nombre: formData.name,
-      ...(clienteId ? { cliente_id: clienteId } : {}),
+      estado: "pending",
+      customer_name: formData.name,
+      customer_id_number: formData.idNumber,
+      customer_phone: normalizedCustomerPhone,
+      ...(clienteId ? { customer_id: clienteId } : {}),
     };
 
     const { data: newOrder, error: orderError } = await createOrderWithFallback(
@@ -324,7 +357,12 @@ export async function processCheckoutOrder(formData, items, total) {
         total,
         payment_method: formData.paymentMethod,
         referencia: formData.reference,
-        items: items.map((i) => ({ id: i.id, name: i.name || i.title, qty: i.quantity, price: i.price })),
+        items: items.map((i) => ({
+          id: i.id,
+          name: i.name || i.title,
+          qty: i.quantity,
+          price: i.price,
+        })),
       },
     });
 

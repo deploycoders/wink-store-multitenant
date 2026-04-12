@@ -1,17 +1,19 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-export async function createClient() {
-  // Agregamos async aquí
-  const cookieStore = await cookies(); // ¡IMPORTANTE: Agregamos el await!
+export async function createClient(storageKey = "sb-admin-auth") {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      auth: {
+        storageKey: storageKey,
+      },
       cookies: {
         getAll() {
-          return cookieStore.getAll(); // Ahora sí funcionará
+          return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
           try {
@@ -19,7 +21,7 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Manejado por el middleware si es un Server Component
+            // Esto es normal en Server Components
           }
         },
       },

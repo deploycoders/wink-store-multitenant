@@ -19,7 +19,7 @@ function formatDate(dateStr) {
 
 export function AuditRow({ entry }) {
   const [expanded, setExpanded] = useState(false);
-  const hasMeta = entry.meta && Object.keys(entry.meta).length > 0;
+  const hasMeta = entry.details && Object.keys(entry.details).length > 0;
 
   return (
     <>
@@ -33,18 +33,18 @@ export function AuditRow({ entry }) {
 
         {/* Tipo */}
         <td className="px-6 py-4">
-          <TipoBadge tipo={entry.tipo} />
+          <TipoBadge tipo={entry.module} />
         </td>
 
         {/* Acción */}
         <td className="px-6 py-4">
-          <AccionBadge accion={entry.accion} />
+          <AccionBadge accion={entry.action} />
         </td>
 
         {/* Descripción */}
         <td className="px-6 py-4 max-w-xs">
-          <p className="text-sm text-slate-700 dark:text-slate-300 truncate" title={entry.descripcion}>
-            {entry.descripcion || <span className="text-slate-400 italic">Sin descripción</span>}
+          <p className="text-sm text-slate-700 dark:text-slate-300 truncate" title={entry.details?.description}>
+            {entry.details?.description || <span className="text-slate-400 italic">Sin descripción</span>}
           </p>
         </td>
 
@@ -55,7 +55,7 @@ export function AuditRow({ entry }) {
               <User size={12} />
             </div>
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">
-              {entry.usuario_nombre || "Sistema"}
+              {entry.details?.user_name || "Sistema"}
             </span>
           </div>
         </td>
@@ -79,7 +79,7 @@ export function AuditRow({ entry }) {
         <tr className="bg-slate-50/50 dark:bg-slate-900/30">
           <td colSpan={6} className="px-10 py-4">
             <pre className="text-xs text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 rounded-xl p-4 overflow-x-auto font-mono border border-slate-200 dark:border-slate-700/50">
-              {JSON.stringify(entry.meta, null, 2)}
+              {JSON.stringify(entry.details, null, 2)}
             </pre>
           </td>
         </tr>

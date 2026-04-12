@@ -18,6 +18,7 @@ import {
 } from "@/lib/siteConfig";
 import { createClient } from "@/lib/supabase/client";
 import { CLOUDINARY_CONFIG } from "../product-form/config";
+import { buildTenantCloudinaryFolder } from "@/lib/cloudinaryFolders";
 import EditorialContentSettings from "./EditorialContentSettings";
 import HeroSliderSettings from "./HeroSliderSettings";
 import SiteIdentitySettings from "./SiteIdentitySettings";
@@ -42,6 +43,7 @@ const normalizeSlides = (value) => (Array.isArray(value) ? value : []);
 export default function SiteSettingsManager() {
   const {
     tenant_id: tenantId,
+    tenant_slug: tenantSlug,
     site_name: currentName,
     hero_slides: currentSlides,
     home_intro: currentHomeIntro,
@@ -155,7 +157,15 @@ export default function SiteSettingsManager() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", CLOUDINARY_CONFIG.uploadPreset);
-    formData.append("folder", "hero_sections");
+    formData.append(
+      "folder",
+      buildTenantCloudinaryFolder({
+        tenantSlug,
+        tenantId,
+        area: "site",
+        subpath: "hero",
+      }),
+    );
 
     try {
       const res = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
@@ -194,7 +204,15 @@ export default function SiteSettingsManager() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("upload_preset", CLOUDINARY_CONFIG.uploadPreset);
-    formData.append("folder", "promo_divider");
+    formData.append(
+      "folder",
+      buildTenantCloudinaryFolder({
+        tenantSlug,
+        tenantId,
+        area: "site",
+        subpath: "promo-divider",
+      }),
+    );
 
     try {
       const res = await fetch(CLOUDINARY_CONFIG.uploadUrl, {

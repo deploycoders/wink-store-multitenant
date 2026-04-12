@@ -1,5 +1,20 @@
 import { createClient } from "@/lib/supabase/client";
 
+export const PLAN_LIMITS = {
+  Bronze: 1,
+  Silver: 3,
+  Gold: 5,
+};
+
+export const normalizePlanType = (value) => {
+  const plan = String(value || "").trim();
+  if (plan === "Silver" || plan === "Gold") return plan;
+  return "Bronze";
+};
+
+export const getUserLimitForPlan = (planType) =>
+  PLAN_LIMITS[normalizePlanType(planType)] ?? PLAN_LIMITS.Bronze;
+
 export async function getTenants() {
   const supabase = createClient();
   const { data, error } = await supabase
@@ -12,6 +27,89 @@ export async function getTenants() {
     return [];
   }
   return data;
+}
+
+export async function getPendingInvitationsByTenantIds(tenantIds) {
+  const ids = Array.isArray(tenantIds) ? tenantIds.filter(Boolean) : [];
+  if (ids.length === 0) return new Map();
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("invitations")
+    .select("id, tenant_id, used, created_at")
+    .in("tenant_id", ids)
+    .eq("used", false)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching invitations:", error.message);
+    return new Map();
+  }
+
+  const map = new Map();
+  for (const row of data || []) {
+    if (!map.has(row.tenant_id)) {
+      map.set(row.tenant_id, row);
+    }
+  }
+  return map;
+}
+
+export async function getPendingInvitationByTenantId(tenantId) {
+  if (!tenantId) return null;
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("invitations")
+    .select("id, tenant_id, used, created_at")
+    .eq("tenant_id", tenantId)
+    .eq("used", false)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching invitation:", error.message);
+    return null;
+  }
+
+  return data || null;
+}
+
+export async function createInvitationForTenant(tenantId) {
+  if (!tenantId) throw new Error("tenantId is required to create invitation");
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("invitations")
+    .insert([{ tenant_id: tenantId }])
+    .select("id, tenant_id, used, created_at")
+    .single();
+
+  if (error) {
+    console.error("Error creating invitation:", error.message);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function revokeInvitation(invitationId) {
+  if (!invitationId) throw new Error("invitationId is required");
+  const supabase = createClient();
+
+  // Prefer hard delete for dev/staging. If RLS blocks, caller will handle error.
+  const { error } = await supabase
+    .from("invitations")
+    .delete()
+    .eq("id", invitationId)
+    .eq("used", false);
+
+  if (error) {
+    console.error("Error revoking invitation:", error.message);
+    throw error;
+  }
+
+  return true;
 }
 
 export async function createTenant(tenantData) {

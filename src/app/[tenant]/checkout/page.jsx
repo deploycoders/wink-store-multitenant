@@ -83,8 +83,8 @@ export default function CheckoutPage() {
   const handleCustomerFound = (customer) => {
     setFormData((prev) => ({
       ...prev,
-      name: customer.nombre_completo,
-      phone: customer.telefono,
+      name: customer.full_name || customer.nombre_completo || "",
+      phone: customer.phone || customer.telefono || "",
       email: customer.email || "",
     }));
 

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { createClient } from "@/lib/supabase/client";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 
-const CUSTOMER_TABLE = "clientes";
+const CUSTOMER_TABLE = "customers";
 
 export function CustomerForm({ formData, setFormData, onCustomerFound }) {
   const { tenant_id: tenantId } = useSiteConfig();
@@ -34,7 +34,7 @@ export function CustomerForm({ formData, setFormData, onCustomerFound }) {
       const { data, error } = await supabase
         .from(CUSTOMER_TABLE)
         .select("*")
-        .eq("cedula", formData.idNumber)
+        .eq("id_number", formData.idNumber)
         .eq("tenant_id", tenantId)
         .limit(1)
         .maybeSingle();

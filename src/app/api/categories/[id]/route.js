@@ -3,14 +3,28 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveTenantContext } from "@/lib/tenantContext";
 import { normalizeParentIds } from "@/lib/categoryRelations";
 
-const isMissingCategoryParentsTable = (error) =>
-  typeof error?.message === "string" &&
-  error.message.includes("category_parents");
+// Función auxiliar para obtener el cliente correcto según la sesión
+async function getAuthenticatedClient() {
+  let supabase = await createClient("sb-admin-auth");
+  let {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    supabase = await createClient("sb-platform-auth");
+    const {
+      data: { user: pUser },
+    } = await supabase.auth.getUser();
+    user = pUser;
+  }
+  return supabase;
+}
 
 // GET /api/categories/[id]
 export async function GET(request, { params }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = await getAuthenticatedClient();
+
   const tenantFromQuery = request.nextUrl.searchParams.get("tenant_id");
   const { tenantId } = await resolveTenantContext(supabase, {
     fallbackTenantId: tenantFromQuery,
@@ -18,35 +32,31 @@ export async function GET(request, { params }) {
 
   let query = supabase.from("categories").select("*").eq("id", id);
 
+  // CAMBIO: Permitir ver la categoría si es del tenant O si es del sistema (null)
   if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+  } else {
+    query = query.is("tenant_id", null);
   }
 
-  const { data, error } = await query.single();
+  const { data, error } = await query.maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 404 });
-  }
-
-  let linksQuery = supabase
-    .from("category_parents")
-    .select("parent_id")
-    .eq("subcategory_id", id);
-  if (tenantId) {
-    linksQuery = linksQuery.eq("tenant_id", tenantId);
-  }
-
-  const { data: parentLinks, error: linksError } = await linksQuery;
-  const parentIds =
-    !linksError || isMissingCategoryParentsTable(linksError)
-      ? (parentLinks || []).map((row) => row.parent_id)
-      : [];
+  if (error)
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
+  if (!data)
+    return NextResponse.json(
+      { success: false, error: "Categoría no encontrada" },
+      { status: 404 },
+    );
 
   return NextResponse.json({
     success: true,
     data: {
       ...data,
-      parent_ids: parentIds.length > 0 ? parentIds : data.parent_id ? [data.parent_id] : [],
+      parent_ids: normalizeParentIds(data.parent_id),
     },
   });
 }
@@ -65,17 +75,29 @@ export async function PUT(request, { params }) {
       tenant_id: payloadTenantId,
     } = body;
 
-    if (!name || !slug) {
-      return NextResponse.json(
-        { success: false, error: "Nombre y slug son obligatorios" },
-        { status: 400 }
-      );
-    }
-
-    const supabase = await createClient();
+    const supabase = await getAuthenticatedClient();
     const { tenantId } = await resolveTenantContext(supabase, {
       fallbackTenantId: payloadTenantId,
     });
+
+    // SEGURIDAD: Antes de actualizar, verificamos que NO sea una categoría del sistema
+    // a menos que seas un superadmin (esto evita que un tenant edite el catálogo maestro)
+    const { data: checkCat } = await supabase
+      .from("categories")
+      .select("is_system, tenant_id")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (checkCat?.is_system && tenantId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No puedes editar categorías del catálogo maestro",
+        },
+        { status: 403 },
+      );
+    }
+
     const normalizedParentIds = normalizeParentIds(parent_ids ?? parent_id);
     const legacyParentId = normalizedParentIds[0] || null;
 
@@ -93,59 +115,28 @@ export async function PUT(request, { params }) {
       query = query.eq("tenant_id", tenantId);
     }
 
-    const { data, error } = await query.select().single();
+    const { data, error } = await query.select().maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
-
-    const deleteLinks = supabase
-      .from("category_parents")
-      .delete()
-      .eq("subcategory_id", id);
-    const deleteScoped = tenantId ? deleteLinks.eq("tenant_id", tenantId) : deleteLinks;
-    const { error: deleteLinksError } = await deleteScoped;
-
-    if (deleteLinksError && !isMissingCategoryParentsTable(deleteLinksError)) {
+    if (error)
       return NextResponse.json(
-        { success: false, error: deleteLinksError.message },
+        { success: false, error: error.message },
         { status: 500 },
       );
-    }
-
-    if (normalizedParentIds.length > 0) {
-      const linksToInsert = normalizedParentIds.map((parentId) => ({
-        parent_id: parentId,
-        subcategory_id: id,
-        tenant_id: tenantId || null,
-      }));
-
-      const { error: insertLinksError } = await supabase
-        .from("category_parents")
-        .insert(linksToInsert);
-
-      if (insertLinksError && isMissingCategoryParentsTable(insertLinksError)) {
-        if (normalizedParentIds.length > 1) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "Para asignar múltiples categorías padre debes crear la tabla category_parents.",
-            },
-            { status: 400 },
-          );
-        }
-      } else if (insertLinksError) {
-        return NextResponse.json(
-          { success: false, error: insertLinksError.message },
-          { status: 500 },
-        );
-      }
-    }
+    if (!data)
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No tienes permiso para editar esta categoría",
+        },
+        { status: 404 },
+      );
 
     return NextResponse.json({ success: true, data });
   } catch (err) {
-    return NextResponse.json({ success: false, error: "Error interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }
 
@@ -153,23 +144,45 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = await getAuthenticatedClient();
+
     const tenantFromQuery = request.nextUrl.searchParams.get("tenant_id");
     const { tenantId } = await resolveTenantContext(supabase, {
       fallbackTenantId: tenantFromQuery,
     });
 
+    // SEGURIDAD: Verificar si es del sistema antes de borrar
+    const { data: checkCat } = await supabase
+      .from("categories")
+      .select("is_system")
+      .eq("id", id)
+      .maybeSingle();
+
+    if (checkCat?.is_system && tenantId) {
+      return NextResponse.json(
+        { success: false, error: "No se pueden eliminar categorías maestras" },
+        { status: 403 },
+      );
+    }
+
     let query = supabase.from("categories").delete().eq("id", id);
+
     if (tenantId) {
       query = query.eq("tenant_id", tenantId);
     }
+
     const { error } = await query;
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+    if (error)
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 500 },
+      );
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ success: false, error: "Error interno" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: err.message },
+      { status: 500 },
+    );
   }
 }

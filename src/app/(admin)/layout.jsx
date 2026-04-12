@@ -100,7 +100,7 @@ export default function AdminLayout({ children }) {
         if (error || !profile) {
           setUserRole("viewer");
         } else {
-          setUserRole(profile.role);
+          setUserRole(profile.role || "viewer");
           setUserProfile(profile);
         }
       } catch (err) {
@@ -176,7 +176,7 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <SiteConfigProvider>
+    <SiteConfigProvider tenantId={userProfile?.tenant_id ?? null}>
       <div className="flex min-h-screen bg-[#FBFBFB] dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-all duration-500">
         <AdminHeader
           isCollapsed={isCollapsed}
