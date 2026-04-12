@@ -1,5 +1,46 @@
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { buildCategoryTree, normalizeParentIds } from "@/lib/categoryRelations";
+
+const getCachedAnonymousClient = () => {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      global: {
+        fetch: (url, options) => {
+          return fetch(url, { ...options, next: { revalidate: 60 } });
+        },
+      },
+    }
+  );
+};
+
+export async function getPublicCategoriesFlat(tenantId = null) {
+  const supabase = getCachedAnonymousClient();
+
+  let query = supabase.from("categories").select("*").order("name", {
+    ascending: true,
+  });
+
+  if (tenantId) {
+    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+  } else {
+    query = query.is("tenant_id", null);
+  }
+
+  const { data: categories, error } = await query;
+
+  if (error) {
+    console.error("Error fetching all categories:", error);
+    return [];
+  }
+
+  return (categories || []).map((cat) => ({
+    ...cat,
+    parent_ids: normalizeParentIds(cat.parent_id),
+  }));
+}
 
 /**
  * Obtiene las categorías maestras filtradas por el tipo de tienda.

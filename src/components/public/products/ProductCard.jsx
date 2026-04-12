@@ -36,7 +36,7 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="group block relative">
-      <Link href={`${baseUrl}/products/${slug}`} className="block">
+      <Link href={`${baseUrl}/products/${slug}`} className="block" prefetch={false}>
         <div className="relative overflow-hidden rounded-2xl bg-[#F9F9F9] aspect-3/4">
           {category?.name && (
             <span className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm">

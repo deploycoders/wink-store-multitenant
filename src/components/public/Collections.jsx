@@ -118,6 +118,7 @@ export default function CollectionsSlider() {
                     >
                       <Link
                         href={`${baseUrl}/products`}
+                        prefetch={false}
                         className="flex items-center"
                       >
                         Comprar Ahora
