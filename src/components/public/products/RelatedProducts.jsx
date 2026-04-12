@@ -31,7 +31,7 @@ export default function RelatedProducts({ products }) {
             Selección Exclusiva
           </span>
           <h2 className="text-xl md:text-2xl font-medium text-zinc-500 italic">
-            No hay prendas disponibles por el momento
+            No hay productos disponibles por el momento
           </h2>
           <div className="w-12 h-px bg-zinc-200 mx-auto mt-6"></div>
         </div>

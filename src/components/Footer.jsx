@@ -76,6 +76,7 @@ const Footer = () => {
   const legalLinks = [
     { name: "Privacidad", href: "/privacy" },
     { name: "Términos", href: "/terms" },
+    { name: "Admin", href: "/access" },
   ];
 
   return (

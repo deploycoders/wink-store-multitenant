@@ -13,6 +13,10 @@ import MediaAndStatus from "./product-form/MediaAndStatus";
 import VariantManager from "./product-form/VariantManager";
 import { CLOUDINARY_CONFIG } from "./product-form/config";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import {
+  buildTenantCloudinaryFolder,
+  slugifyCloudinarySegment,
+} from "@/lib/cloudinaryFolders";
 
 const ProductForm = ({
   show,
@@ -36,8 +40,7 @@ const ProductForm = ({
       : Number(fallbackStock) || 0;
 
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [subcategories, setSubcategories] = useState([]);
+  const [categories, setCategories] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [newImageFiles, setNewImageFiles] = useState([]); // [{ file, blobUrl }]
   const { tenant_id: tenantId, tenant_slug: tenantSlug } = useSiteConfig();
@@ -50,7 +53,6 @@ const ProductForm = ({
     discount_price: "",
     stock: "",
     category_ids: [], // Soporte para múltiples categorías
-    subcategory_id: "",
     images: [],
     status: "draft",
     featured: false,
@@ -62,29 +64,18 @@ const ProductForm = ({
     if (show) {
       setNewImageFiles([]);
       fetchCategories();
+
       if (editingProduct) {
-        console.log("Editando producto:", editingProduct);
-        // Extraer IDs de categorías si vienen de la tabla pivot
-        // Ahora nos aseguramos de que el query traiga category_id
-        const initialCategoryIds =
-          (editingProduct.category_id ? [editingProduct.category_id] : []);
-        const uniqueInitialCategoryIds = [
-          ...new Set(initialCategoryIds.filter(Boolean)),
-        ];
-
-        console.log("IDs de categorías iniciales:", uniqueInitialCategoryIds);
-
         const initialVariants = sanitizeVariants(
           editingProduct.variants || editingProduct.product_variants || [],
         );
 
         setFormData({
           ...editingProduct,
+          category_ids: editingProduct.category_ids || [],
           short_description: editingProduct.short_description || "",
           description: editingProduct.description || "",
           discount_price: editingProduct.discount_price || "",
-          subcategory_id: editingProduct.subcategory_id || "",
-          category_ids: uniqueInitialCategoryIds,
           variants: initialVariants,
           stock: calculateTotalStock(
             initialVariants,
@@ -96,22 +87,6 @@ const ProductForm = ({
       }
     }
   }, [show, editingProduct]);
-
-  // Effect to handle subcategories when category_ids change or categories are loaded
-  useEffect(() => {
-    if (formData.category_ids?.length > 0 && categories.length > 0) {
-      const merged = categories
-        .filter((c) => formData.category_ids.includes(c.id))
-        .flatMap((c) => c.subcategories || []);
-
-      const uniqueById = Array.from(
-        new Map(merged.map((sub) => [sub.id, sub])).values(),
-      );
-      setSubcategories(uniqueById);
-    } else {
-      setSubcategories([]);
-    }
-  }, [formData.category_ids, categories]);
 
   const resetForm = () => {
     // Revocar todos los blobs actuales para evitar memory leaks
@@ -125,15 +100,14 @@ const ProductForm = ({
       price: "",
       discount_price: "",
       stock: "",
-      category_ids: [],
+      category_ids: [], // <-- SIEMPRE ARRAY VACÍO
       subcategory_id: "",
-      images: [],
+      images: [], // <-- SIEMPRE ARRAY VACÍO
       status: "draft",
       featured: false,
       slug: "",
-      variants: [],
+      variants: [], // <-- SIEMPRE ARRAY VACÍO (Esto evita el error en VariantManager)
     });
-    setSubcategories([]);
   };
 
   // Cleanup blobs on unmount
@@ -148,12 +122,19 @@ const ProductForm = ({
       const resp = await fetch("/api/categories");
       const result = await resp.json();
       console.log("Categorías obtenidas:", result);
-      if (result.success) setCategories(result.data);
+
+      if (result.success) {
+        // Si result.data es null/undefined por error de la API,
+        // ponemos [] para que se oculte el cargando
+        setCategories(result.data || []);
+      } else {
+        setCategories([]);
+      }
     } catch (err) {
       console.error("Error fetching categories:", err);
+      setCategories([]); // Importante: ante un error, dejamos de cargar
     }
   };
-
   const handleCategoryChange = (catId) => {
     setFormData((prev) => {
       const currentIds = prev.category_ids || [];
@@ -162,7 +143,7 @@ const ProductForm = ({
         ? currentIds.filter((id) => id !== catId)
         : [...currentIds, catId];
 
-      return { ...prev, category_ids: newIds, subcategory_id: "" };
+      return { ...prev, category_ids: newIds };
     });
   };
 
@@ -204,16 +185,24 @@ const ProductForm = ({
 
     setUploading(true);
     try {
-      const safeSlug = String(
-        tenantSlug || `tenant-${tenantId || "general"}`,
-      ).replace(/[^a-zA-Z0-9_-]/g, "-");
+      const productSegment =
+        slugifyCloudinarySegment(formData.slug) ||
+        slugifyCloudinarySegment(formData.name) ||
+        "product";
+
+      const folder = buildTenantCloudinaryFolder({
+        tenantSlug,
+        tenantId,
+        area: "products",
+        subpath: productSegment,
+      });
 
       const uploadPromises = newImageFiles.map(async ({ file }) => {
         const data = new FormData();
         data.append("file", file);
         data.append("upload_preset", CLOUDINARY_CONFIG.uploadPreset);
         data.append("cloud_name", CLOUDINARY_CONFIG.cloudName);
-        data.append("folder", `tenants/${safeSlug}/products`);
+        data.append("folder", folder);
 
         const resp = await fetch(CLOUDINARY_CONFIG.uploadUrl, {
           method: "POST",
@@ -312,7 +301,7 @@ const ProductForm = ({
         icon: "error",
         title: "Ups...",
         text: err.message,
-        customClass: { popup: "rounded-[2rem]" },
+        customClass: { popup: "rounded-md" },
       });
     } finally {
       setLoading(false);
@@ -390,7 +379,6 @@ const ProductForm = ({
                   formData={formData}
                   setFormData={setFormData}
                   categories={categories}
-                  subcategories={subcategories}
                   uploading={uploading}
                   handleImageUpload={handleImageUpload}
                   handleCategoryChange={handleCategoryChange}

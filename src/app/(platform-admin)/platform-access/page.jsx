@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createPlatformClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { LogIn, Mail, Lock, Loader2, Building2 } from "lucide-react";
 import Swal from "sweetalert2";
@@ -11,7 +11,7 @@ export default function PlatformAccessPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
+  const supabase = createPlatformClient();
   const router = useRouter();
   const brand = PLATFORM_BRAND_NAME;
   const hostname = PLATFORM_BRAND_HOSTNAME.replace(/^https?:\/\//, "");

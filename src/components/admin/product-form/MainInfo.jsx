@@ -35,8 +35,8 @@ const MainInfo = ({ formData, setFormData, readOnly = false }) => {
         <Input
           required
           name="name"
-          placeholder="Ej. Franela Wink Edición Especial"
-          className="h-14 px-6 rounded-2xl border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all font-bold text-base"
+          placeholder="Ropa, Herramientas, Juguetes, etc..."
+          className="h-14 px-6 rounded-md border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all font-bold text-base"
           value={formData.name}
           onChange={handleNameChange}
           disabled={readOnly}
@@ -61,12 +61,12 @@ const MainInfo = ({ formData, setFormData, readOnly = false }) => {
       {/* Descripción Corta */}
       <div className="space-y-2">
         <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 ml-1 flex items-center gap-2">
-          <AlignLeft size={12} /> Descripción Corta (Resumen)
+          <AlignLeft size={12} /> Descripción corta (Resumen)
         </label>
         <Input
           name="short_description"
           placeholder="Resumen para catálogos y búsquedas..."
-          className="h-12 px-6 rounded-xl border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all font-medium text-sm"
+          className="h-12 px-6 rounded-md border-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:placeholder:text-slate-500 focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all font-medium text-sm"
           value={formData.short_description}
           onChange={handleChange}
           disabled={readOnly}
@@ -82,7 +82,7 @@ const MainInfo = ({ formData, setFormData, readOnly = false }) => {
           name="description"
           rows={5}
           placeholder="Describe las características principales..."
-          className="w-full px-6 py-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-4xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all outline-none font-medium text-sm resize-none"
+          className="w-full px-6 py-4 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-md focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-all outline-none font-medium text-sm resize-none"
           value={formData.description}
           onChange={handleChange}
           disabled={readOnly}

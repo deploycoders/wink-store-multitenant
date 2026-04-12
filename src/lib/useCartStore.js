@@ -41,6 +41,7 @@ export const useCartStore = create()(
                 ...product,
                 quantity,
                 variant: normalizedSize,
+                variant_id: variantData?.id || null,
                 variant_name: variantData?.name || null,
                 base_price: basePrice,
                 price_adjustment: priceAdjustment,

@@ -97,22 +97,11 @@ export default function AdminLayout({ children }) {
           .eq("id", session.user.id)
           .single();
 
-        let memberRole = "viewer";
-        if (profile?.tenant_id) {
-          const { data: member } = await supabase
-            .from("tenant_members")
-            .select("role")
-            .eq("tenant_id", profile.tenant_id)
-            .eq("user_id", session.user.id)
-            .single();
-          if (member?.role) memberRole = member.role;
-        }
-
         if (error || !profile) {
           setUserRole("viewer");
         } else {
-          setUserRole(memberRole);
-          setUserProfile({ ...profile, role: memberRole });
+          setUserRole(profile.role || "viewer");
+          setUserProfile(profile);
         }
       } catch (err) {
         console.error("Auth error:", err);
@@ -187,7 +176,7 @@ export default function AdminLayout({ children }) {
   }
 
   return (
-    <SiteConfigProvider>
+    <SiteConfigProvider tenantId={userProfile?.tenant_id ?? null}>
       <div className="flex min-h-screen bg-[#FBFBFB] dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-all duration-500">
         <AdminHeader
           isCollapsed={isCollapsed}

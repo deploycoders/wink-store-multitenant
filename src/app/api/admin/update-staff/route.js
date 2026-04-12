@@ -20,16 +20,13 @@ export async function POST(request) {
     // 2. Actualizar el rol y permisos en staff_profiles
     const { error: profileError } = await supabaseAdmin
       .from("staff_profiles")
-      .update({ permissions: permissions || [] })
+      .update({ 
+        permissions: permissions || [],
+        role: role || "viewer"
+      })
       .eq("id", userId);
 
     if (profileError) throw profileError;
-
-    if (tenant_id) {
-      await supabaseAdmin
-        .from("tenant_members")
-        .upsert({ tenant_id, user_id: userId, role: role || "viewer" }, { onConflict: 'tenant_id,user_id' });
-    }
 
     // 3. Registrar en bitácora
     await logAudit(supabaseAdmin, {

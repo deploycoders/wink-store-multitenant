@@ -1,47 +1,45 @@
 import { createClient } from "@/lib/supabase/server";
 import { buildCategoryTree, normalizeParentIds } from "@/lib/categoryRelations";
 
-
 /**
- * Obtiene todas las categorías con sus subcategorías anidadas.
- * Las subcategorías son categorías que tienen un parent_id.
+ * Obtiene las categorías maestras filtradas por el tipo de tienda.
+ * IMPORTANTE: Solo trae las que tienen tenant_id en NULL (Maestras).
  */
-export async function getCategories(tenantId = null) {
+export async function getCategoriesByStoreType(storeType) {
   const supabase = await createClient();
-  let query = supabase.from("categories").select("*").order("name", {
-    ascending: true,
-  });
 
-  if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
-  }
-
-  const { data: categories, error } = await query;
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("store_type", storeType)
+    .is("tenant_id", null) // Filtro crítico para el catálogo maestro
+    .order("name", { ascending: true });
 
   if (error) {
-    console.error("Error fetching categories:", error);
+    console.error("Error cargando catálogo maestro:", error);
     return [];
   }
 
-  const links = (categories || []).filter(c => c.parent_id).map(c => ({
-    parent_id: c.parent_id,
-    subcategory_id: c.id
-  }));
-  return buildCategoryTree(categories || [], links);
+  // Si usas estructura jerárquica (subcategorías), construimos el árbol aquí
+  return buildCategoryTree(data || []);
 }
 
 /**
- * Obtiene todas las categorías (incluyendo subcategorías) en estructura plana.
- * Útil para selects y dropdowns.
+ * Obtiene categorías en estructura plana.
+ * Si no se pasa tenantId, solo trae las maestras.
  */
 export async function getAllCategoriesFlat(tenantId = null) {
   const supabase = await createClient();
+
   let query = supabase.from("categories").select("*").order("name", {
     ascending: true,
   });
 
   if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+    // Trae las del inquilino + las maestras
+    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+  } else {
+    query = query.is("tenant_id", null);
   }
 
   const { data: categories, error } = await query;
@@ -58,20 +56,22 @@ export async function getAllCategoriesFlat(tenantId = null) {
 }
 
 /**
- * Obtiene una categoría por su ID con sus subcategorías.
+ * Obtiene una categoría específica.
  */
 export async function getCategoryById(id, tenantId = null) {
   if (!id) return null;
   const supabase = await createClient();
+
   let query = supabase.from("categories").select("*").eq("id", id);
-  
+
+  // Si se provee tenantId, validamos que sea suya o maestra
   if (tenantId) {
-    query = query.eq("tenant_id", tenantId);
+    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
   }
 
-  const { data, error } = await query.single();
+  const { data, error } = await query.maybeSingle();
 
-  if (error) {
+  if (error || !data) {
     console.error("Error fetching category:", error);
     return null;
   }
@@ -84,12 +84,17 @@ export async function getCategoryById(id, tenantId = null) {
 
 /**
  * Crea una nueva categoría.
+ * Nota: Si el usuario crea una, se le asigna su tenant_id automáticamente.
  */
 export async function createCategory(data) {
   const supabase = await createClient();
+
+  // Forzamos que si es creada por un usuario, is_system sea false
+  const payload = { ...data, is_system: data.is_system || false };
+
   const { data: category, error } = await supabase
     .from("categories")
-    .insert([data])
+    .insert([payload])
     .select()
     .single();
 
@@ -102,32 +107,48 @@ export async function createCategory(data) {
 
 /**
  * Actualiza una categoría existente.
+ * Protege que un usuario no edite categorías del sistema.
  */
-export async function updateCategory(id, data) {
+export async function updateCategory(id, data, tenantId = null) {
   const supabase = await createClient();
-  const { data: category, error } = await supabase
-    .from("categories")
-    .update(data)
-    .eq("id", id)
-    .select()
-    .single();
+
+  // Paso previo de seguridad: No permitir editar si es is_system y no eres admin
+  let query = supabase.from("categories").update(data).eq("id", id);
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId); // Un usuario solo edita las SUYAS
+  }
+
+  const { data: category, error } = await query.select().maybeSingle();
 
   if (error) {
     console.error("Error updating category:", error);
     return { success: false, error: error.message };
   }
+
+  if (!category) {
+    return {
+      success: false,
+      error: "No se encontró la categoría o no tienes permiso para editarla",
+    };
+  }
+
   return { success: true, data: category };
 }
 
 /**
- * Elimina una categoría por su ID.
+ * Elimina una categoría.
  */
-export async function deleteCategory(id) {
+export async function deleteCategory(id, tenantId = null) {
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("categories")
-    .delete()
-    .eq("id", id);
+
+  let query = supabase.from("categories").delete().eq("id", id);
+
+  if (tenantId) {
+    query = query.eq("tenant_id", tenantId); // Solo puede borrar si le pertenece
+  }
+
+  const { error } = await query;
 
   if (error) {
     console.error("Error deleting category:", error);

@@ -37,42 +37,54 @@ export default function ProductsPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      let queryWithRelations = supabase
+
+      let query = supabase
         .from("products")
-        .select(
-          "*, category:categories!category_id(id, name), subcategory:categories!subcategory_id(id, name), product_variants(*)",
-        );
+        .select(`
+          *,
+          product_variants(*),
+          product_stock(quantity),
+          product_categories!product_categories_product_id_fkey(
+            category_id,
+            categories!product_categories_category_id_fkey(name)
+          )
+        `);
 
       if (tenantId) {
-        queryWithRelations = queryWithRelations.eq("tenant_id", tenantId);
+        query = query.eq("tenant_id", tenantId);
       }
 
-      const withRelations = await queryWithRelations.order("created_at", {
-        ascending: false,
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const normalized = (data || []).map((product) => {
+        const stockObj = Array.isArray(product.product_stock)
+          ? product.product_stock[0]
+          : product.product_stock;
+        const categoryIds = (product.product_categories || []).map((pc) => pc.category_id);
+        const categoryNames = (product.product_categories || [])
+          .map((pc) => pc.categories?.name)
+          .filter(Boolean);
+        return {
+          ...product,
+          stock: stockObj?.quantity ?? 0,
+          variants: (product.product_variants || []).map((v) => ({
+            ...v,
+            price_adjustment: Number(v.price_adjustment ?? v.price_override ?? 0) || 0,
+            stock_quantity: Number(v.stock_quantity ?? 0) || 0,
+          })),
+          category_ids: categoryIds,
+          category_names: categoryNames,
+          product_variants: undefined,
+          product_categories: undefined,
+          product_stock: undefined,
+        };
       });
 
-      if (!withRelations.error) {
-        setProducts(withRelations.data || []);
-        return;
-      }
-
-      console.warn(
-        "No se pudieron cargar relaciones de productos, se usa fallback:",
-        getErrorMessage(withRelations.error),
-      );
-
-      let fallbackQuery = supabase.from("products").select("*");
-      if (tenantId) {
-        fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
-      }
-      const fallback = await fallbackQuery.order("created_at", {
-        ascending: false,
-      });
-      if (fallback.error) throw fallback.error;
-
-      setProducts(fallback.data || []);
-    } catch (e) {
-      console.error("Error cargando productos:", getErrorMessage(e));
+      setProducts(normalized);
+    } catch (error) {
+      console.error("Error cargando productos:", error?.message);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -83,13 +95,10 @@ export default function ProductsPage() {
   }, [tenantId]);
 
   const filteredProducts = products.filter((p) => {
-    // Filtro por nombre
     const matchesSearch = p.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
 
-    // Filtro por estado
-    // 'published' es el valor que viene de la base de datos según tu código
     const matchesStatus =
       statusFilter === "Todos los estados" ||
       (statusFilter === "Publicados" && p.status === "published") ||
@@ -453,7 +462,11 @@ export default function ProductsPage() {
                           {product.name}
                         </p>
                         <p className="text-[10px] text-zinc-400 dark:text-slate-500 font-bold uppercase tracking-tighter">
-                          {product.subcategory?.name || product.category?.name || "Sin categoría"}
+                          {product.category_names?.length > 0
+                            ? product.category_names[0]
+                            : "Sin categoría"}
+                          {product.category_names?.length > 1 &&
+                            ` (+${product.category_names.length - 1})`}
                         </p>
                       </div>
                     </div>

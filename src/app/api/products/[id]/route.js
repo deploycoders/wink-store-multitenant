@@ -5,16 +5,11 @@ import { resolveTenantContext } from "@/lib/tenantContext";
 const mapVariantToDb = (variant, { tenantId, productId }) => ({
   product_id: productId,
   tenant_id: tenantId,
-  attribute_name: String(
-    variant.name || variant.attribute_name || "Variante",
-  ).trim(),
-  attribute_value: String(
-    variant.value || variant.attribute_value || "",
-  ).trim(),
+  attributes: variant.attributes || {},
   price_override:
     Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
   stock_quantity:
-    Number(variant.stock_adjustment ?? variant.stock_quantity ?? 0) || 0,
+    Number(variant.stock_quantity ?? variant.stock_adjustment ?? 0) || 0,
   sku: variant.sku || null,
 });
 
@@ -32,7 +27,6 @@ export async function PUT(request, { params }) {
       stock,
       images,
       category_ids = [],
-      subcategory_id,
       status,
       featured,
       slug,
@@ -58,7 +52,6 @@ export async function PUT(request, { params }) {
         price: parseFloat(price),
         discount_price: discount_price ? parseFloat(discount_price) : null,
         images: images || [],
-        subcategory_id: subcategory_id || null,
         status,
         featured,
         slug,
@@ -115,7 +108,7 @@ export async function PUT(request, { params }) {
       if (variants.length > 0) {
         const variantsToInsert = variants
           .map((v) => mapVariantToDb(v, { tenantId, productId: id }))
-          .filter((v) => v.attribute_value);
+          .filter((v) => v.attributes && Object.keys(v.attributes).length > 0);
 
         if (variantsToInsert.length > 0) {
           const { error: variantsError } = await supabase

@@ -208,7 +208,7 @@ function RegisterContent() {
 
           <Button
             type="submit"
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-lg font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 transition-all hover:translate-y-[-2px] active:translate-y-[0px] flex items-center justify-center gap-3 group mt-4 cursor-pointer"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white h-14 rounded-lg font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-slate-200 transition-all hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-3 group mt-4 cursor-pointer"
             disabled={registering}
           >
             {registering ? (

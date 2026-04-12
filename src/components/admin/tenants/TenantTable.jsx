@@ -32,6 +32,7 @@ export function TenantTable({
   onTenantUpdated,
   pendingInvitations,
   onInviteTenant,
+  tenantUserCounts,
 }) {
   const [copiedId, setCopiedId] = useState(null);
   const [statusLoading, setStatusLoading] = useState(null);
@@ -178,12 +179,31 @@ export function TenantTable({
               </TableCell>
               <TableCell className="text-center">
                 <div className="flex flex-col items-center">
-                  <span className="text-sm font-medium">
-                    0 / {tenant.max_users || tenant.user_limit || "—"}
-                  </span>
-                  <div className="w-16 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
-                    <div className="bg-blue-500 h-full w-0" />
-                  </div>
+                  {(() => {
+                    const used = Number(
+                      tenantUserCounts?.[tenant.tenant_id] ?? 0,
+                    );
+                    const limit = Number(
+                      tenant.max_users || tenant.user_limit || 0,
+                    );
+                    const pct =
+                      limit > 0
+                        ? Math.min(100, Math.round((used / limit) * 100))
+                        : 0;
+                    return (
+                      <>
+                        <span className="text-sm font-medium">
+                          {used} / {limit || "—"}
+                        </span>
+                        <div className="w-16 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                          <div
+                            className="bg-slate-900 h-full"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </TableCell>
               <TableCell className="text-center">

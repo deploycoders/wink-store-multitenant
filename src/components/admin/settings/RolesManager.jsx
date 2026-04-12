@@ -43,6 +43,8 @@ const RolesManager = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
+  const [tenantLimit, setTenantLimit] = useState(1);
+  const [effectiveTenantId, setEffectiveTenantId] = useState(null);
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -55,23 +57,19 @@ const RolesManager = () => {
   const fetchStaff = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const scopedTenantId = effectiveTenantId ?? tenantId ?? null;
+
+      let staffQuery = supabase
         .from("staff_profiles")
         .select("*")
         .order("full_name");
+      if (scopedTenantId) staffQuery = staffQuery.eq("tenant_id", scopedTenantId);
+
+      const { data, error } = await staffQuery;
 
       if (error) throw error;
-      
-      const { data: memberData } = await supabase
-        .from("tenant_members")
-        .select("user_id, role");
-        
-      const staffList = (data || []).map(staff => {
-        const mem = (memberData || []).find(m => m.user_id === staff.id);
-        return { ...staff, role: mem?.role || "viewer" };
-      });
-      
-      setStaff(staffList);
+
+      setStaff(data || []);
     } catch (error) {
       console.error("Error cargando staff:", error.message);
     } finally {
@@ -83,10 +81,50 @@ const RolesManager = () => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setCurrentUser(user);
     });
-    fetchStaff();
+    (async () => {
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const user = auth?.user;
+        if (!user?.id) {
+          fetchStaff();
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from("staff_profiles")
+          .select("tenant_id")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        const scopedTenantId = profile?.tenant_id ?? tenantId ?? null;
+        setEffectiveTenantId(scopedTenantId);
+
+        if (scopedTenantId) {
+          const { data: tenantRow } = await supabase
+            .from("tenants")
+            .select("max_users, user_limit")
+            .eq("tenant_id", scopedTenantId)
+            .maybeSingle();
+          const limit = Number(tenantRow?.max_users || tenantRow?.user_limit || 1);
+          setTenantLimit(limit);
+        } else {
+          setTenantLimit(1);
+        }
+      } finally {
+        fetchStaff();
+      }
+    })();
   }, []);
 
   const openCreateModal = () => {
+    if (staff.length >= tenantLimit) {
+      Swal.fire(
+        "Límite alcanzado",
+        `Tu plan permite hasta ${tenantLimit} usuario(s).`,
+        "info",
+      );
+      return;
+    }
     setEditingId(null);
     setIsResetMode(false);
     setFormData({
@@ -141,7 +179,7 @@ const RolesManager = () => {
             permissions: formData.permissions,
             actor_name: currentUser?.email ?? "Admin",
             target_name: targetMember?.full_name ?? formData.email,
-            tenant_id: targetMember?.tenant_id || tenantId
+            tenant_id: targetMember?.tenant_id || tenantId,
           }),
         });
         const result = await response.json();
@@ -159,7 +197,7 @@ const RolesManager = () => {
           body: JSON.stringify({
             ...formData,
             actor_name: currentUser?.email ?? "Admin",
-            tenant_id: tenantId
+            tenant_id: tenantId,
           }),
         });
         const result = await response.json();
@@ -252,7 +290,7 @@ const RolesManager = () => {
         const targetName = encodeURIComponent(targetMember?.full_name ?? id);
         const response = await fetch(
           `/api/admin/delete-staff?id=${id}&actor=${actorName}&name=${targetName}`,
-          { method: "DELETE" }
+          { method: "DELETE" },
         );
         const resJson = await response.json();
         if (!response.ok) throw new Error(resJson.error);
@@ -276,13 +314,24 @@ const RolesManager = () => {
             Administración de permisos y personal de la plataforma.
           </p>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex cursor-pointer items-center gap-2 bg-slate-900 dark:bg-white text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-white dark:text-slate-900 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
-        >
-          <Plus size={16} />
-          CREAR USUARIO
-        </button>
+        {staff.length >= tenantLimit ? (
+          <button
+            disabled
+            className="flex items-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest cursor-not-allowed"
+            title={`Límite: ${tenantLimit} usuario(s)`}
+          >
+            <Plus size={16} />
+            LÍMITE ALCANZADO
+          </button>
+        ) : (
+          <button
+            onClick={openCreateModal}
+            className="flex cursor-pointer items-center gap-2 bg-slate-900 dark:bg-white text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 dark:hover:bg-white dark:text-slate-900 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
+          >
+            <Plus size={16} />
+            CREAR USUARIO
+          </button>
+        )}
       </header>
 
       {/* Tabla Estándar con scroll responsive */}
@@ -343,7 +392,7 @@ const RolesManager = () => {
       inline-flex items-center justify-center
       px-3 py-1.5 rounded-lg
       text-[9px] font-black uppercase tracking-widest
-      whitespace-nowrap min-w-[80px]
+      whitespace-nowrap min-w-20
       ${
         user.role === "super_admin"
           ? "bg-slate-900 dark:bg-white dark:text-slate-900 text-white shadow-sm dark:shadow-none"

@@ -10,7 +10,7 @@ import { TenantTable } from "@/components/admin/tenants/TenantTable";
 import { NewTenantModal } from "@/components/admin/tenants/NewTenantModal";
 import { InvitationLink } from "@/components/admin/tenants/InvitationLink";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createPlatformClient } from "@/lib/supabase/client";
 import Swal from "sweetalert2";
 import {
   Building2,
@@ -51,9 +51,10 @@ export default function TenantsPage() {
   const [actorRoleLabel, setActorRoleLabel] = useState("Platform Admin");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteTenantId, setInviteTenantId] = useState(null);
+  const [tenantUserCounts, setTenantUserCounts] = useState({});
 
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createPlatformClient();
 
   useEffect(() => {
     const loadActor = async () => {
@@ -112,6 +113,19 @@ export default function TenantsPage() {
     const tenantIds = (data || []).map((t) => t.tenant_id);
     const pending = await getPendingInvitationsByTenantIds(tenantIds);
     setPendingInvitations(pending);
+
+    // Load staff user counts per tenant (platform-only endpoint).
+    try {
+      const resp = await fetch("/api/platform/tenant-user-counts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantIds }),
+      });
+      const json = await resp.json();
+      if (resp.ok) setTenantUserCounts(json.counts || {});
+    } catch {
+      // Non-blocking: table renders with fallback.
+    }
 
     if (!lastInvitation && pending.size > 0) {
       const [tenantId, invitation] = pending.entries().next().value;
@@ -303,7 +317,15 @@ export default function TenantsPage() {
       icon: Award,
       tier: "TIER",
     },
-    { label: "Usuarios Totales", value: 0, icon: Users, tier: "IMPACT" },
+    {
+      label: "Usuarios Totales",
+      value: Object.values(tenantUserCounts || {}).reduce(
+        (acc, n) => acc + Number(n || 0),
+        0,
+      ),
+      icon: Users,
+      tier: "IMPACT",
+    },
   ];
 
   return (
@@ -418,6 +440,7 @@ export default function TenantsPage() {
               onTenantUpdated={handleTenantUpdated}
               pendingInvitations={pendingInvitations}
               onInviteTenant={ensureInvitationForTenant}
+              tenantUserCounts={tenantUserCounts}
             />
           </div>
 

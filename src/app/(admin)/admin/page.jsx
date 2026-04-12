@@ -235,7 +235,7 @@ export default function AdminDashboard() {
                       className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
                     >
                       <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
-                        #{order.id.slice(-6).toUpperCase()}
+                        #{String(order.id).slice(-6).toUpperCase()}
                       </td>
                       <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
                         {order.clientes?.full_name || "Desconocido"}
