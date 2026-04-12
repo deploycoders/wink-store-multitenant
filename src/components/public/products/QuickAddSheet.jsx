@@ -20,7 +20,7 @@ import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
-  const [selectedVariantId, setSelectedVariantId] = useState(null);
+  const [selectedAttrs, setSelectedAttrs] = useState({});
   const addItem = useCartStore((state) => state.addItem);
   const router = useRouter();
   const { site_name, tenant_slug } = useSiteConfig();
@@ -39,58 +39,71 @@ export default function QuickAddSheet({ product, open, onClose }) {
     slug,
   } = product;
 
-  const normalizedVariants = useMemo(
-    () =>
-      (product_variants || []).map((variant) => ({
-        ...variant,
-        id: variant.id,
-        name: variant.name || variant.attribute_name || "Variante",
-        value: variant.value || variant.attribute_value || "",
-        price_adjustment:
-          Number(variant.price_adjustment ?? variant.price_override ?? 0) || 0,
-        stock_adjustment:
-          variant.stock_adjustment ?? variant.stock_quantity ?? null,
-      })),
-    [product_variants],
-  );
+  const attributeGroups = useMemo(() => {
+    const groups = {};
+    (product_variants || []).forEach((v) => {
+      if (!v.attributes) return;
+      Object.entries(v.attributes).forEach(([key, val]) => {
+        if (!groups[key]) groups[key] = new Set();
+        groups[key].add(String(val));
+      });
+    });
+    return groups;
+  }, [product_variants]);
 
-  const selectedVariant = normalizedVariants.find(
-    (variant) => String(variant.id) === String(selectedVariantId),
-  );
+  const attributeKeys = Object.keys(attributeGroups);
+  const hasVariants = attributeKeys.length > 0;
+
+  const selectedVariant = useMemo(() => {
+    if (!hasVariants) return null;
+    return (
+      (product_variants || []).find((v) => {
+        if (!v.attributes) return false;
+        return attributeKeys.every(
+          (key) => String(v.attributes[key]) === String(selectedAttrs[key])
+        );
+      }) || null
+    );
+  }, [hasVariants, product_variants, attributeKeys, selectedAttrs]);
+
+  const isOptionAvailable = (key, val) =>
+    (product_variants || []).some((v) => {
+      if (!v.attributes || String(v.attributes[key]) !== String(val))
+        return false;
+      return attributeKeys
+        .filter((k) => k !== key && selectedAttrs[k])
+        .every((k) => String(v.attributes[k]) === String(selectedAttrs[k]));
+    });
+
+  const handleSelectAttr = (key, val) => {
+    setSelectedAttrs((prev) => ({ ...prev, [key]: val }));
+  };
+
+  const allAttrsSelected =
+    !hasVariants || attributeKeys.every((k) => selectedAttrs[k]);
 
   const regularPrice = Number(price) || 0;
   const offerPrice = Number(discount_price) || 0;
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
   const basePrice = hasActiveOffer ? offerPrice : regularPrice;
-  const priceAdjustment = Number(selectedVariant?.price_adjustment) || 0;
+  const priceAdjustment = Number(
+    selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0
+  );
   const finalPrice = basePrice + priceAdjustment;
   const finalRegularPrice = regularPrice + priceAdjustment;
   const imageUrl = images?.[0] || "/placeholder.jpg";
 
-  const hasVariants = normalizedVariants.length > 0;
-  const hasMultipleVariantTypes =
-    new Set(
-      normalizedVariants
-        .map((variant) => variant.name)
-        .filter(Boolean)
-        .map((value) => String(value).trim().toLowerCase()),
-    ).size > 1;
-
-  const selectorLabel = hasMultipleVariantTypes
-    ? "Seleccionar Variante"
-    : `Seleccionar ${normalizedVariants[0]?.name || "Variante"}`;
-
   useEffect(() => {
     if (!open) {
-      setSelectedVariantId(null);
+      setSelectedAttrs({});
     }
   }, [open]);
 
   const ensureVariantBeforeContinue = () => {
-    if (hasVariants && !selectedVariant) {
+    if (hasVariants && !allAttrsSelected) {
       Swal.fire({
         title: "¡Atención!",
-        text: "Selecciona una variante para poder continuar.",
+        text: "Selecciona todas las opciones para poder continuar.",
         icon: "warning",
         confirmButtonColor: "#1A1A1A",
         background: "#FBF9F6",
@@ -98,22 +111,27 @@ export default function QuickAddSheet({ product, open, onClose }) {
       });
       return false;
     }
-
     return true;
+  };
+
+  const processAdd = () => {
+    const variantLabel = hasVariants
+      ? Object.values(selectedAttrs).join(" / ")
+      : null;
+    addItem(product, 1, variantLabel, selectedVariant);
+    onClose();
+    setSelectedAttrs({});
   };
 
   const handleAddToCart = () => {
     if (!ensureVariantBeforeContinue()) return;
-
-    addItem(product, 1, selectedVariant?.value || null, selectedVariant);
-    onClose();
-    setSelectedVariantId(null);
+    processAdd();
     Swal.fire({
       icon: "success",
       title: "¡Añadido!",
       text: `${name} al carrito`,
       toast: true,
-      position: "top-end", // La ubica en la esquina superior derecha
+      position: "top-end",
       showConfirmButton: false,
       timer: 1500,
       timerProgressBar: true,
@@ -125,10 +143,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
 
   const handleBuyNow = () => {
     if (!ensureVariantBeforeContinue()) return;
-
-    addItem(product, 1, selectedVariant?.value || null, selectedVariant);
-    onClose();
-    setSelectedVariantId(null);
+    processAdd();
     router.push(`${baseUrl}/checkout`);
   };
 
@@ -161,7 +176,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
             <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
               {brand}
             </p>
-            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink">
+            <h2 className="text-lg font-serif font-bold uppercase tracking-tight text-ink line-clamp-1">
               {name || "Producto sin nombre"}
             </h2>
 
@@ -178,8 +193,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
 
             {priceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">
-                +${priceAdjustment.toFixed(2)} por{" "}
-                {selectedVariant?.name?.toLowerCase() || "atributo"}.
+                +${priceAdjustment.toFixed(2)} de recargo por combinación.
               </p>
             )}
 
@@ -198,43 +212,46 @@ export default function QuickAddSheet({ product, open, onClose }) {
         </div>
 
         {hasVariants && (
-          <div className="mb-8">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark mb-3">
-              {selectorLabel}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {normalizedVariants.map((variant) => {
-                const hasStockValue =
-                  variant.stock_adjustment !== null &&
-                  variant.stock_adjustment !== undefined;
-                const stockValue = Number(variant.stock_adjustment) || 0;
-                const isOutOfStock = hasStockValue && stockValue <= 0;
-
-                return (
-                  <Button
-                    key={variant.id}
-                    variant="ghost"
-                    type="button"
-                    disabled={isOutOfStock}
-                    onClick={() => setSelectedVariantId(variant.id)}
-                    className={cn(
-                      "min-w-14 h-11 cursor-pointer rounded-md uppercase transition-all duration-200 border disabled:cursor-not-allowed",
-                      String(selectedVariantId) === String(variant.id)
-                        ? "bg-ink text-paper border-ink shadow-md"
-                        : "bg-transparent text-ink border-honey-light/50 hover:border-ink",
-                      isOutOfStock && "opacity-35 line-through",
-                    )}
-                  >
-                    {hasMultipleVariantTypes
-                      ? `${variant.name}: ${variant.value}`
-                      : variant.value}
-                  </Button>
-                );
-              })}
-            </div>
-            {!selectedVariant && (
-              <p className="mt-3 text-[10px] font-semibold text-amber-700">
-                Debes seleccionar una variante antes de agregar al carrito.
+          <div className="mb-8 space-y-4">
+            {attributeKeys.map((attrKey) => (
+              <div key={attrKey} className="space-y-2">
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-honey-dark">
+                  SELECCIONAR {attrKey.toUpperCase()}
+                  {selectedAttrs[attrKey] && (
+                    <span className="ml-1 text-ink normal-case font-semibold">
+                      - {selectedAttrs[attrKey]}
+                    </span>
+                  )}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[...attributeGroups[attrKey]].map((val) => {
+                    const available = isOptionAvailable(attrKey, val);
+                    const isSelected = selectedAttrs[attrKey] === val;
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        disabled={!available}
+                        onClick={() => handleSelectAttr(attrKey, val)}
+                        className={cn(
+                          "min-w-14 h-11 px-3 rounded-md uppercase transition-all duration-200 border text-xs font-bold",
+                          "cursor-pointer disabled:cursor-not-allowed select-none",
+                          isSelected
+                            ? "bg-black text-white border-black shadow-md"
+                            : "bg-transparent text-black border-gray-200 hover:border-black",
+                          !available && "opacity-25 line-through"
+                        )}
+                      >
+                        {val}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            {!allAttrsSelected && (
+              <p className="mt-2 text-[10px] font-semibold text-amber-700">
+                Debes seleccionar una combinación antes de agregar al carrito.
               </p>
             )}
           </div>
@@ -244,7 +261,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
           <div className="grid grid-cols-2 gap-2">
             <Button
               onClick={handleAddToCart}
-              disabled={hasVariants && !selectedVariant}
+              disabled={hasVariants && !allAttrsSelected}
               className="h-13 bg-ink cursor-pointer text-paper hover:bg-ink/90 font-bold uppercase text-[10px] tracking-[0.16em] shadow-lg"
             >
               <ShoppingBag size={16} className="mr-2" />
@@ -253,7 +270,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
 
             <Button
               onClick={handleBuyNow}
-              disabled={hasVariants && !selectedVariant}
+              disabled={hasVariants && !allAttrsSelected}
               variant="outline"
               className="h-13 cursor-pointer border-ink text-ink hover:bg-ink hover:text-paper font-bold uppercase text-[10px] tracking-[0.16em]"
             >

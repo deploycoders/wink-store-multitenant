@@ -54,9 +54,9 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
       if (error) return;
 
       if (data) {
-        if (data.estado === "Completado") {
+        if (data.estado === "paid" || data.estado === "Completado") {
           onSuccess();
-        } else if (data.estado === "Cancelado") {
+        } else if (data.estado === "cancelled" || data.estado === "Cancelado") {
           setStatus("Cancelado");
           setMotivo("Verifica los datos de tu pago e intenta nuevamente.");
         }
@@ -78,9 +78,9 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
         (payload) => {
           if (tenant_id && payload.new.tenant_id !== tenant_id) return;
           const newStatus = payload.new.estado;
-          if (newStatus === "Completado") {
+          if (newStatus === "paid" || newStatus === "Completado") {
             onSuccess();
-          } else if (newStatus === "Cancelado") {
+          } else if (newStatus === "cancelled" || newStatus === "Cancelado") {
             setStatus("Cancelado");
             setMotivo("Verifica los datos de tu pago e intenta nuevamente.");
           }
