@@ -68,7 +68,7 @@ export default function MiniCart({ open, setOpen }) {
                 <SheetClose asChild>
                   <Button
                     variant="outline"
-                    className="rounded-full border-ink hover:bg-ink hover:text-paper transition-all uppercase text-[10px] font-bold tracking-[0.2em]"
+                    className="rounded-md cursor-pointer border-ink hover:bg-ink hover:text-paper transition-all uppercase text-[10px] font-bold tracking-[0.2em]"
                   >
                     Continuar Comprando
                   </Button>
@@ -203,7 +203,7 @@ export default function MiniCart({ open, setOpen }) {
                 className="w-full border-honey-light hover:border-ink text-honey-dark hover:text-ink font-bold uppercase text-[10px] tracking-[0.2em] h-12 group"
               >
                 <Link
-                  href="/cart"
+                  href={`${baseUrl}/cart`}
                   className="flex items-center justify-center gap-2"
                 >
                   Ver Carrito Completo{" "}

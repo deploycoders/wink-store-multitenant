@@ -2,26 +2,21 @@ import { getProductBySlug, getHomeProducts } from "@/services/products";
 import ProductView from "@/components/public/products/ProductView";
 import RelatedProducts from "@/components/public/products/RelatedProducts";
 import { DEFAULT_SITE_NAME, getSiteConfig } from "@/lib/siteConfig";
-import { createClient } from "@/lib/supabase/server";
+import { getTenantIdBySlugCached } from "@/lib/siteConfig.server";
+
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }) {
   const { tenant, slug } = await params;
-  const supabase = await createClient();
-
-  // Obtener el ID del tenant a partir del slug
-  const { data: tenantRow } = await supabase
-    .from("tenants")
-    .select("tenant_id")
-    .eq("slug", tenant)
-    .single();
-
-  const product = await getProductBySlug(slug, tenantRow?.tenant_id);
+  
+  const tenantId = await getTenantIdBySlugCached(tenant);
+  const product = await getProductBySlug(slug, tenantId);
 
   if (!product) {
     return { title: "Producto no encontrado" };
   }
 
-  const { site_name } = await getSiteConfig({ tenantId: tenantRow?.tenant_id });
+  const { site_name } = await getSiteConfig({ tenantId });
   const brand = site_name || DEFAULT_SITE_NAME;
 
   return {
@@ -41,16 +36,8 @@ export async function generateMetadata({ params }) {
 
 export default async function ProductPage({ params }) {
   const { tenant, slug } = await params;
-  const supabase = await createClient();
-
-  // Obtener el ID del tenant a partir del slug
-  const { data: tenantRow } = await supabase
-    .from("tenants")
-    .select("tenant_id")
-    .eq("slug", tenant)
-    .single();
-
-  const tenantId = tenantRow?.tenant_id;
+  
+  const tenantId = await getTenantIdBySlugCached(tenant);
 
   const [product, allProducts] = await Promise.all([
     getProductBySlug(slug, tenantId),

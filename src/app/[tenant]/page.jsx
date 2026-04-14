@@ -8,20 +8,17 @@ import AnimatedProducts from "@/components/public/products/AnimatedProducts";
 import Collections from "@/components/public/Collections";
 import PromoDivider from "@/components/PromoDivider";
 import { getHomeProducts } from "@/services/products";
-import { createClient } from "@/lib/supabase/server";
+import { getTenantIdBySlugCached } from "@/lib/siteConfig.server";
+
+export const revalidate = 3600;
 
 export default async function HomePage({ params }) {
   const { tenant } = await params;
-  const supabase = await createClient();
 
-  // Obtener el ID del tenant a partir del slug
-  const { data: tenantRow } = await supabase
-    .from("tenants")
-    .select("tenant_id")
-    .eq("slug", tenant)
-    .single();
+  // Usa caché directa en memoria sin Cookies (¡ISR puro!)
+  const tenantId = await getTenantIdBySlugCached(tenant);
 
-  const products = await getHomeProducts(tenantRow?.tenant_id);
+  const products = await getHomeProducts(tenantId);
   const baseUrl = `/${tenant}`;
 
   return (

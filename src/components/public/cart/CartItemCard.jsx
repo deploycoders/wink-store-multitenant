@@ -2,17 +2,35 @@
 
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
 
-export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
+export default function CartItemCard({
+  item,
+  onUpdateQuantity,
+  onRemove,
+  isSelected,
+  onToggle,
+}) {
   return (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, x: -20 }}
-      className="border border-honey-light/50 rounded-3xl p-4 md:p-5 mb-3 flex flex-col sm:flex-row gap-5 relative group hover:shadow-xl hover:shadow-ink/5 transition-all duration-500"
+      className="border border-honey-light/50 rounded-md p-4 md:p-5 mb-3 flex flex-row gap-4 sm:gap-5 relative group hover:shadow-xl hover:shadow-ink/5 transition-all duration-500"
     >
+      {/* SELECCIÓN INDIVIDUAL */}
+      <button
+        onClick={() => onToggle(item.id, item.variant)}
+        className="flex items-center justify-center text-honey-dark hover:text-ink transition-colors px-1"
+      >
+        {isSelected ? (
+          <CheckCircle2 size={24} className="text-ink fill-ink/5" />
+        ) : (
+          <Circle size={24} className="opacity-20" />
+        )}
+      </button>
+
       {/* IMAGEN PRODUCTO */}
       <div className="relative w-full sm:w-24 h-48 sm:h-32 bg-secondary rounded-2xl overflow-hidden shrink-0 border border-honey-light/30">
         <AdaptiveImage
@@ -67,7 +85,7 @@ export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
               onClick={() =>
                 onUpdateQuantity(item.id, item.quantity - 1, item.variant)
               }
-              className="w-7 h-7 flex items-center justify-center text-honey-dark hover:text-ink disabled:opacity-20 transition-all font-bold"
+              className="w-7 h-7 flex cursor-pointer items-center justify-center text-honey-dark hover:text-ink disabled:opacity-20 transition-all font-bold"
             >
               <Minus size={14} />
             </button>
@@ -78,7 +96,7 @@ export default function CartItemCard({ item, onUpdateQuantity, onRemove }) {
               onClick={() =>
                 onUpdateQuantity(item.id, item.quantity + 1, item.variant)
               }
-              className="w-7 h-7 flex items-center justify-center text-honey-dark hover:text-ink transition-all font-bold"
+              className="w-7 h-7 flex cursor-pointer items-center justify-center text-honey-dark hover:text-ink transition-all font-bold"
             >
               <Plus size={14} />
             </button>

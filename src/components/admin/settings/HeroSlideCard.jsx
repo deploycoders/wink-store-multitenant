@@ -34,6 +34,7 @@ export default function HeroSlideCard({
           alt={slide.title || "Preview"}
           fill
           className="object-cover"
+          containerClassName="h-full"
           sizes="(max-width: 768px) 100vw, 33vw"
           priority={index === 0}
         />

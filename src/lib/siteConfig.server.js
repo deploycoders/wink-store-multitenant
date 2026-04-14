@@ -26,7 +26,7 @@ const resolveLegacyCommerceSettings = (row = {}) => {
   return legacy.commerce_settings || legacy.commerce || legacy;
 };
 
-const getTenantIdBySlugCached = unstable_cache(
+export const getTenantIdBySlugCached = unstable_cache(
   async (tenantSlug) => {
     if (!tenantSlug) return null;
     const supabase = getPublicSupabaseClient();

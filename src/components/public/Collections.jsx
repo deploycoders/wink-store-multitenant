@@ -66,9 +66,9 @@ export default function CollectionsSlider() {
             <CarouselItem key={slide.id} className="pl-0">
               {/* CAMBIO: Usamos lg:flex-row para que en tablets siga siendo vertical y no se rompa */}
               {/* Aumentamos h-auto a lg:h-[500px] para dar más presencia */}
-              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:min-h-112.5">
+              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:h-[600px]">
                 {/* IMAGEN */}
-                <div className="w-full lg:w-1/2 relative h-72 lg:h-auto bg-zinc-50 dark:bg-slate-800 overflow-hidden shrink-0">
+                <div className="w-full lg:w-1/2 relative h-72 lg:h-full bg-zinc-50 dark:bg-slate-800 overflow-hidden shrink-0">
                   <motion.div
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}

@@ -83,17 +83,24 @@ const resolveStorageKeyForPath = (pathname) => {
 
 const getPortalContext = async (supabase, session) => {
   if (!session?.user?.id) return { type: "anonymous", hasStaffProfile: false };
-  const { data: staffProfile, error: profileError } = await supabase
-    .from("staff_profiles")
-    .select("id")
-    .eq("id", session.user.id)
-    .maybeSingle();
-  if (profileError) return { type: "unknown", hasStaffProfile: false };
-  if (staffProfile?.id) return { type: "admin", hasStaffProfile: true };
+
+  const userMeta = session.user.user_metadata || {};
+  const appMeta = session.user.app_metadata || {};
   const email = session.user.email;
-  if (hasPlatformScopeInMetadata(session.user) || isPlatformAdminEmail(email)) {
+
+  const accessScope = userMeta.access_scope || appMeta.access_scope;
+  const role = userMeta.role || appMeta.role;
+
+  if (accessScope === "platform" || isPlatformAdminEmail(email)) {
     return { type: "platform", hasStaffProfile: false };
   }
+
+  // Verificamos si en los metadatos figura con rol de admin
+  if (accessScope === "admin" || role === "admin" || appMeta.role === "admin") {
+    return { type: "admin", hasStaffProfile: true }; // Asumimos true por el scope resuelto
+  }
+
+  // Fallback si no hay metadata válida aún (usuarios legacy necesitarán update)
   return { type: "unknown", hasStaffProfile: false };
 };
 

@@ -3,7 +3,9 @@ import AnimatedProducts from "@/components/public/products/AnimatedProducts";
 import { getPublicCategoriesFlat } from "@/services/categories";
 import { getProducts } from "@/services/products";
 import { DEFAULT_SITE_NAME, getSiteConfig } from "@/lib/siteConfig";
-import { createClient } from "@/lib/supabase/server";
+import { getTenantIdBySlugCached } from "@/lib/siteConfig.server";
+
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }) {
   const { tenant } = await params;
@@ -18,16 +20,9 @@ export async function generateMetadata({ params }) {
 
 export default async function ProductsPage({ params }) {
   const { tenant } = await params;
-  const supabase = await createClient();
-
-  // Obtener el ID del tenant a partir del slug
-  const { data: tenantRow } = await supabase
-    .from("tenants")
-    .select("tenant_id")
-    .eq("slug", tenant)
-    .single();
-
-  const tenantId = tenantRow?.tenant_id;
+  
+  // ISR: Usamos el caché seguro de server sin cookies
+  const tenantId = await getTenantIdBySlugCached(tenant);
 
   // 2. Ejecutamos ambas peticiones en paralelo para mayor velocidad
   const [products, categories] = await Promise.all([

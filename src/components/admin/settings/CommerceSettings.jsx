@@ -82,6 +82,41 @@ export default function CommerceSettings({ value, onChange }) {
             />
           </div>
         </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800">
+          <div>
+            <label className={labelClassName}>Costo de envío estándar ($)</label>
+            <input
+              type="number"
+              step="0.01"
+              value={value.delivery_fee ?? ""}
+              onChange={(e) =>
+                handleFieldChange("delivery_fee", parseFloat(e.target.value) || 0)
+              }
+              className={inputClassName}
+              placeholder="Ej: 5.00"
+            />
+            <p className="text-[10px] mt-1 text-slate-400 italic">
+              Este monto se sumará al total si no se alcanza el envío gratuito.
+            </p>
+          </div>
+          <div>
+            <label className={labelClassName}>Monto mínimo para envío gratis ($)</label>
+            <input
+              type="number"
+              step="1"
+              value={value.free_shipping_threshold ?? ""}
+              onChange={(e) =>
+                handleFieldChange("free_shipping_threshold", parseFloat(e.target.value) || 0)
+              }
+              className={inputClassName}
+              placeholder="Ej: 50.00"
+            />
+            <p className="text-[10px] mt-1 text-slate-400 italic">
+              Dejar en 0 si quieres que siempre se cobre el envío.
+            </p>
+          </div>
+        </div>
 
         <div className="space-y-3">
           <label className={labelClassName}>Metodos de pago activos</label>

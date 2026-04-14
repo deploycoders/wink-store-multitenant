@@ -134,6 +134,8 @@ export const DEFAULT_COMMERCE_SETTINGS = {
   terms_title: "Terminos y Condiciones",
   terms_content:
     "Aqui puedes definir condiciones de compra, envios, devoluciones, garantias, limitaciones de responsabilidad y uso general de la tienda.",
+  delivery_fee: 5.0,
+  free_shipping_threshold: 50.0,
 };
 
 export const normalizeHeaderMenu = (menu) => {
@@ -165,7 +167,10 @@ export const normalizeHeroSlides = (heroSlides) => {
   if (!Array.isArray(heroSlides) || heroSlides.length === 0) {
     return returnDefaults().hero_slides;
   }
-  return heroSlides;
+  return heroSlides.map((slide) => ({
+    ...slide,
+    image: slide.image || "/banner-clothes.jpg",
+  }));
 };
 
 export const normalizeCommerceSettings = (commerceSettings) => {
@@ -218,6 +223,8 @@ export const normalizeCommerceSettings = (commerceSettings) => {
           .filter(Boolean)
           .slice(0, 3)
       : DEFAULT_COMMERCE_SETTINGS.product_notices,
+    delivery_fee: Number(normalized.delivery_fee ?? 0),
+    free_shipping_threshold: Number(normalized.free_shipping_threshold ?? 0),
   };
 };
 

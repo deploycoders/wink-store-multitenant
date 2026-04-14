@@ -6,10 +6,14 @@ export function OrderSummary({
   items,
   subtotal,
   total,
+  deliveryFee = 0,
+  threshold = 50,
   brandImageLabel = DEFAULT_SITE_NAME,
 }) {
+  const isFree = subtotal >= threshold && threshold > 0;
+  
   return (
-    <div className="bg-paper border border-honey-light/50 rounded-[2.5rem] p-8 h-fit lg:sticky lg:top-10 shadow-sm">
+    <div className="bg-paper border border-honey-light/50 rounded-[2.5rem] p-8 h-fit lg:sticky lg:top-10 shadow-sm transition-all duration-300">
       <h3 className="text-lg font-serif font-bold text-ink uppercase tracking-tight mb-6">
         Tu Pedido
       </h3>
@@ -62,10 +66,16 @@ export function OrderSummary({
           <span
             className={cn(
               "text-[9px]",
-              total >= 50 ? "text-green-600" : "text-amber-600",
+              isFree ? "text-green-600" : "text-amber-600",
             )}
           >
-            {total >= 50 ? "Gratis" : "Cobro en destino"}
+            {isFree ? (
+              "Gratis ✨"
+            ) : deliveryFee > 0 ? (
+              `$${deliveryFee.toFixed(2)}`
+            ) : (
+              "Cobro en destino"
+            )}
           </span>
         </div>
         <div className="pt-4 flex justify-between items-baseline text-ink border-t border-honey-light/10">

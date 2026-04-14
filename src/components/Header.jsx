@@ -88,7 +88,10 @@ export default function Header() {
                 {item.label}
               </button>
             ))}
-            <Link href={`${baseUrl}/products`} className="hover:text-ink transition">
+            <Link
+              href={`${baseUrl}/products`}
+              className="hover:text-ink transition"
+            >
               Colecciones
             </Link>
           </nav>
@@ -97,7 +100,7 @@ export default function Header() {
           <div className="flex items-center text-honey-dark">
             <button
               onClick={() => setIsCartOpen(true)}
-              className="relative h-10 w-10 flex items-center justify-center hover:text-ink transition-colors"
+              className="relative h-10 w-10 cursor-pointer flex items-center justify-center hover:text-ink transition-colors"
               aria-label="Abrir carrito"
             >
               <ShoppingBag size={20} strokeWidth={1.5} />
@@ -149,7 +152,10 @@ export default function Header() {
                     {item.label}
                   </button>
                 ))}
-                <Link href={`${baseUrl}/products`} onClick={() => setIsMenuOpen(false)}>
+                <Link
+                  href={`${baseUrl}/products`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   Colecciones
                 </Link>
               </nav>

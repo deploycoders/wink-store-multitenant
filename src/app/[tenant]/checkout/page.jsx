@@ -78,7 +78,11 @@ export default function CheckoutPage() {
   if (!mounted) return null;
 
   const subtotal = getTotalPrice();
-  const total = subtotal;
+  const deliveryFee = Number(commerce.delivery_fee || 0);
+  const threshold = Number(commerce.free_shipping_threshold || 50);
+  const isFreeShipping = subtotal >= threshold && threshold > 0;
+  const appliedDelivery = isFreeShipping ? 0 : deliveryFee;
+  const total = subtotal + appliedDelivery;
 
   const handleCustomerFound = (customer) => {
     setFormData((prev) => ({
@@ -165,10 +169,18 @@ export default function CheckoutPage() {
           return;
         }
 
-        const isFreeShipping = total >= 50;
-        const shippingMethod = isFreeShipping
-          ? "GRATIS ✨"
-          : "COBRO EN DESTINO 🚚";
+        const deliveryFee = Number(commerce.delivery_fee || 0);
+        const threshold = Number(commerce.free_shipping_threshold || 50);
+        const isFreeShipping = subtotal >= threshold && threshold > 0;
+        const appliedDelivery = isFreeShipping ? 0 : deliveryFee;
+        const finalTotalCalculated = subtotal + appliedDelivery;
+
+        let shippingMethod = "COBRO EN DESTINO 🚚";
+        if (isFreeShipping) {
+          shippingMethod = "GRATIS ✨";
+        } else if (deliveryFee > 0) {
+          shippingMethod = `$${deliveryFee.toFixed(2)} 🚚`;
+        }
 
         // CORRECCIÓN: Cambiamos item.title por item.name
         const orderDetails = items
@@ -201,7 +213,7 @@ He realizado un pago por ${selectedPaymentMethod}.
 🛒 *PEDIDO ${orderIdShort}*
 ${orderDetails}
 
-💰 *TOTAL*: $${total.toFixed(2)}
+💰 *TOTAL*: $${finalTotalCalculated.toFixed(2)}
 🚚 *ENVÍO*: ${shippingMethod}
 
 📝 *NOTAS*: ${formData.notes || "Ninguna"}
@@ -216,7 +228,7 @@ ${orderDetails}
 
         if (whatsappHref) window.open(whatsappHref, "_blank");
 
-        setFinalTotal(total);
+        setFinalTotal(finalTotalCalculated);
         setOrderId(safeOrderId || null);
         setPurchasedItems([...items]);
         clearCart();
@@ -286,6 +298,8 @@ ${orderDetails}
                   items={items}
                   subtotal={subtotal}
                   total={total}
+                  deliveryFee={deliveryFee}
+                  threshold={threshold}
                   brandImageLabel={brandImageLabel}
                 />
               </div>
