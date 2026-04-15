@@ -20,15 +20,21 @@ export async function generateMetadata({ params }) {
 
 export default async function ProductsPage({ params }) {
   const { tenant } = await params;
-  
+
   // ISR: Usamos el caché seguro de server sin cookies
   const tenantId = await getTenantIdBySlugCached(tenant);
 
   // 2. Ejecutamos ambas peticiones en paralelo para mayor velocidad
-  const [products, categories] = await Promise.all([
+  const [productsRaw, categories] = await Promise.all([
     getProducts(tenantId),
     getPublicCategoriesFlat(tenantId),
   ]);
+
+  // 3. Mapeo de categorías en el servidor para evitar joins ambiguos en Supabase
+  const products = productsRaw.map((product) => ({
+    ...product,
+    category: categories.find((cat) => cat.id === product.category_id) || null,
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-6 lg:px-12">

@@ -10,7 +10,7 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, index = 0 }) {
   const { site_name, tenant_slug } = useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
@@ -27,6 +27,7 @@ export default function ProductCard({ product }) {
   const rawImageUrl = images?.[0] || "/placeholder.jpg";
   const imageUrl = getOptimizedImage(rawImageUrl, 400);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const isPriority = index < 4;
 
   const handleQuickAdd = (e) => {
     e.preventDefault();
@@ -36,7 +37,11 @@ export default function ProductCard({ product }) {
 
   return (
     <div className="group block relative">
-      <Link href={`${baseUrl}/products/${slug}`} className="block" prefetch={false}>
+      <Link
+        href={`${baseUrl}/products/${slug}`}
+        className="block"
+        prefetch={false}
+      >
         <div className="relative overflow-hidden rounded-2xl bg-[#F9F9F9] aspect-3/4">
           {category?.name && (
             <span className="absolute top-3 left-3 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest text-ink shadow-sm">
@@ -49,16 +54,22 @@ export default function ProductCard({ product }) {
             alt={name || `Producto de ${brand}`}
             fill
             sizes="(max-width: 768px) 50vw, 25vw"
+            priority={isPriority}
             className="object-cover transition-transform duration-700 ease-out group-hover:scale-110"
           />
 
           <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
 
-        <div className="mt-4 space-y-1 px-1">
+        <div className="mt-4 space-y-1.5 px-1">
+          {category?.name && (
+            <span className="block text-[9px] font-bold uppercase tracking-[0.3em] text-honey-dark leading-none">
+              {category.name}
+            </span>
+          )}
           <div className="flex justify-between items-start">
-            <h4 className="text-[13px] font-semibold text-ink uppercase tracking-tight">
-              {name} {/* Corregido: 'name' en lugar de 'title' */}
+            <h4 className="text-[13px] font-bold text-ink uppercase tracking-tight">
+              {name}
             </h4>
             <div className="flex flex-col items-end leading-tight">
               {hasActiveOffer && (

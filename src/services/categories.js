@@ -12,34 +12,61 @@ const getCachedAnonymousClient = () => {
           return fetch(url, { ...options, next: { revalidate: 60 } });
         },
       },
-    }
+    },
   );
 };
 
+async function getTenantStoreType(tenantId) {
+  if (!tenantId) return null;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tenants")
+    .select("store_type")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching tenant store_type:", error);
+    return null;
+  }
+
+  return data?.store_type || null;
+}
+
 export async function getPublicCategoriesFlat(tenantId = null) {
-  const supabase = getCachedAnonymousClient();
+  // 1. Usar el cliente que ya tiene la configuración de cookies/auth
+  const supabase = await createClient();
 
-  let query = supabase.from("categories").select("*").order("name", {
-    ascending: true,
-  });
-
+  let storeType = null;
   if (tenantId) {
-    query = query.or(`tenant_id.eq.${tenantId},tenant_id.is.null`);
+    const { data: tenant } = await supabase
+      .from("tenants")
+      .select("store_type")
+      .eq("tenant_id", Number(tenantId))
+      .single();
+    storeType = tenant?.store_type;
+  }
+
+  // 2. Construcción limpia de la query
+  let query = supabase.from("categories").select("*");
+
+  if (tenantId && storeType) {
+    // Consulta: Mis categorías O las globales de mi rubro
+    query = query.or(
+      `tenant_id.eq.${tenantId},and(tenant_id.is.null,store_type.eq.${storeType})`,
+    );
   } else {
     query = query.is("tenant_id", null);
   }
 
-  const { data: categories, error } = await query;
+  const { data, error } = await query.order("name", { ascending: true });
 
   if (error) {
-    console.error("Error fetching all categories:", error);
+    console.error("Error en categorías:", error.message);
     return [];
   }
 
-  return (categories || []).map((cat) => ({
-    ...cat,
-    parent_ids: normalizeParentIds(cat.parent_id),
-  }));
+  return data || [];
 }
 
 /**

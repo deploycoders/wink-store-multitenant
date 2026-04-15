@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import ScrollToTop from "@/components/ScrollStop";
 import SiteConfigGate from "@/components/SiteConfigGate";
 import TenantBrandingLayout from "@/components/tenant/TenantBrandingLayout";
+import OrderTrackingWidget from "@/components/tenant/OrderTrackingWidget";
 import {
   PLATFORM_BRAND_HOSTNAME,
   DEFAULT_SITE_NAME,
@@ -43,6 +44,7 @@ export default async function TenantLayout({ children, params }) {
         <div className="flex flex-col min-h-screen">
           <ScrollToTop />
           <Header />
+          <OrderTrackingWidget />
           <main className="grow bg-white">{children}</main>
           <Footer />
         </div>
@@ -50,4 +52,3 @@ export default async function TenantLayout({ children, params }) {
     </TenantBrandingLayout>
   );
 }
-

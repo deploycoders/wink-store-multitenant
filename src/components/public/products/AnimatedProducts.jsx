@@ -73,11 +73,12 @@ export default function AnimatedProducts({ products, categories }) {
   const { tenant_slug } = useSiteConfig();
   const pendingCategory = useFilterStore((s) => s.pendingCategory);
   const clearPendingCategory = useFilterStore((s) => s.clearPendingCategory);
-  
+
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
 
   // Prioridad: store (viene del Header) > URL param > "all"
-  const initialCategory = pendingCategory || searchParams.get("category") || "all";
+  const initialCategory =
+    pendingCategory || searchParams.get("category") || "all";
   const [activeCategory, setActiveCategory] = useState(() =>
     hasCategoryFilter
       ? resolveCategorySelection(initialCategory, categories)
@@ -135,6 +136,8 @@ export default function AnimatedProducts({ products, categories }) {
     setFilteredProducts(result);
   }, [activeCategory, searchQuery, products, hasCategoryFilter]);
 
+  console.log("Categorías recibidas en el cliente:", categories);
+
   return (
     <div className="space-y-12">
       {categories && categories.length > 0 && (
@@ -162,7 +165,7 @@ export default function AnimatedProducts({ products, categories }) {
           variants={containerVariants}
         >
           <AnimatePresence mode="popLayout">
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product, index) => (
               <motion.div
                 key={product.id}
                 variants={itemVariants}
@@ -178,7 +181,11 @@ export default function AnimatedProducts({ products, categories }) {
                       : ""
                   }
                 >
-                  <ProductCard product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    index={index} // <-- Ahora sí, 'index' está definido y se pasa correctamente
+                  />
                 </div>
               </motion.div>
             ))}
@@ -195,7 +202,7 @@ export default function AnimatedProducts({ products, categories }) {
               ? "No se han encontrado piezas con esta selección..."
               : "Parece que aún no tenemos piezas destacadas preparadas. ¡Pero esto es solo el principio!"}
           </p>
-          
+
           {categories ? (
             <button
               onClick={() => {

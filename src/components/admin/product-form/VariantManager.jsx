@@ -309,14 +309,16 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                           <td className="px-6 pt-5 pb-2">
                             <div className="flex gap-1.5 flex-wrap">
                               {v.attributes &&
-                                Object.entries(v.attributes).map(([key, val]) => (
-                                  <span
-                                    key={key}
-                                    className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700"
-                                  >
-                                    {val}
-                                  </span>
-                                ))}
+                                Object.entries(v.attributes).map(
+                                  ([key, val]) => (
+                                    <span
+                                      key={key}
+                                      className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700"
+                                    >
+                                      {val}
+                                    </span>
+                                  ),
+                                )}
                             </div>
                           </td>
                           <td className="px-6 pt-5 pb-2">
@@ -330,7 +332,11 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                                 className="w-full pl-9 pr-3 h-10 bg-emerald-50 dark:bg-emerald-500/10 rounded-md text-xs font-black text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-emerald-500 transition-all border-none"
                                 value={v.stock_quantity || 0}
                                 onChange={(e) =>
-                                  updateVariant(idx, "stock_quantity", e.target.value)
+                                  updateVariant(
+                                    idx,
+                                    "stock_quantity",
+                                    e.target.value,
+                                  )
                                 }
                                 disabled={readOnly}
                               />
@@ -347,7 +353,11 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                                 className="w-full pl-9 pr-3 h-10 bg-slate-50 dark:bg-slate-800 rounded-md text-xs font-black text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-slate-500 transition-all border-none"
                                 value={v.price_adjustment}
                                 onChange={(e) =>
-                                  updateVariant(idx, "price_adjustment", e.target.value)
+                                  updateVariant(
+                                    idx,
+                                    "price_adjustment",
+                                    e.target.value,
+                                  )
                                 }
                                 disabled={readOnly}
                               />
@@ -378,7 +388,6 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                         </tr>
                       </React.Fragment>
                     ))}
-
                   </tbody>
                 </table>
               </div>
@@ -506,7 +515,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
               </div>
             </div>
           ) : (
-            <div className="group h-[500px] border-4 border-dashed border-slate-100 dark:border-slate-800/50 rounded-md flex flex-col items-center justify-center gap-6 hover:border-slate-300 dark:hover:border-slate-900 transition-all duration-500">
+            <div className="group h-125 border-4 border-dashed border-slate-100 dark:border-slate-800/50 rounded-md flex flex-col items-center justify-center gap-6 hover:border-slate-300 dark:hover:border-slate-900 transition-all duration-500">
               <div className="w-24 h-24 bg-slate-50 dark:bg-slate-800 rounded-md flex items-center justify-center text-slate-200 dark:text-slate-700 group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
                 <Combine size={48} />
               </div>

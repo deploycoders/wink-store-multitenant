@@ -54,7 +54,7 @@ export default function CollectionsSlider() {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="my-8 px-4" // Añadido un poco de padding lateral al contenedor padre
+      className="my-8 px-4"
     >
       <Carousel
         plugins={isSingleSlide ? [] : [plugin.current]}
@@ -64,9 +64,7 @@ export default function CollectionsSlider() {
         <CarouselContent className="ml-0">
           {hero_slides.map((slide) => (
             <CarouselItem key={slide.id} className="pl-0">
-              {/* CAMBIO: Usamos lg:flex-row para que en tablets siga siendo vertical y no se rompa */}
-              {/* Aumentamos h-auto a lg:h-[500px] para dar más presencia */}
-              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:h-[600px]">
+              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:h-[480px]">
                 {/* IMAGEN */}
                 <div className="w-full lg:w-1/2 relative h-72 lg:h-full bg-zinc-50 dark:bg-slate-800 overflow-hidden shrink-0">
                   <motion.div
@@ -85,7 +83,7 @@ export default function CollectionsSlider() {
                   </motion.div>
                 </div>
 
-                {/* TEXTO: Ajustamos paddings y tamaños */}
+                {/* TEXTO */}
                 <div className="w-full lg:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white dark:bg-slate-900 transition-colors duration-500">
                   <motion.span
                     variants={itemVariants}
@@ -126,7 +124,6 @@ export default function CollectionsSlider() {
                       </Link>
                     </Button>
 
-                    {/* FLECHAS: Solo si hay más de 1 slide */}
                     {!isSingleSlide && (
                       <div className="hidden sm:flex gap-2">
                         <CarouselPrevious className="static translate-y-0 h-10 w-10 border-zinc-200 dark:border-slate-700 shadow-none hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors rounded-xl cursor-pointer" />

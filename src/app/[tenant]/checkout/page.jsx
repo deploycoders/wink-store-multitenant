@@ -33,6 +33,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const [isWaiting, setIsWaiting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isPendingOrderRestored, setIsPendingOrderRestored] = useState(false);
   const [finalTotal, setFinalTotal] = useState(0);
   const [orderId, setOrderId] = useState(null);
   const [purchasedItems, setPurchasedItems] = useState([]);
@@ -70,10 +71,32 @@ export default function CheckoutPage() {
   }, []);
 
   useEffect(() => {
+    const pending = window.localStorage.getItem("pendingOrderTracking");
+    if (!pending) {
+      setIsPendingOrderRestored(true);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(pending);
+      if (parsed?.orderId) {
+        setOrderId(String(parsed.orderId));
+        setIsWaiting(true);
+      }
+    } catch (error) {
+      console.warn("Error restaurando pedido pendiente:", error);
+    } finally {
+      setIsPendingOrderRestored(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isPendingOrderRestored) return;
+
     if (items.length === 0 && !isSuccess && !isWaiting) {
       router.push(`${baseUrl}/products`);
     }
-  }, [items, isSuccess, isWaiting, router]);
+  }, [items, isSuccess, isWaiting, router, isPendingOrderRestored, baseUrl]);
 
   if (!mounted) return null;
 
@@ -199,6 +222,24 @@ export default function CheckoutPage() {
         const orderIdShort = safeOrderId
           ? `(#${safeOrderId.slice(-6).toUpperCase()})`
           : "";
+        const orderCode = safeOrderId
+          ? safeOrderId.slice(-6).toUpperCase()
+          : "";
+
+        if (safeOrderId) {
+          window.localStorage.setItem(
+            "pendingOrderTracking",
+            JSON.stringify({
+              orderId: safeOrderId,
+              status: "pending",
+              rawStatus: "pending",
+              tenantSlug: tenant_slug || "",
+              orderCode,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            }),
+          );
+        }
 
         const message = `Hola ${brand}! 👋
 

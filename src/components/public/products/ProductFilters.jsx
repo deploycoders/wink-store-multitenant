@@ -97,7 +97,10 @@ export default function ProductFilters({
       </div>
 
       {/* Carrusel de Categorías (Slider) */}
-      <div className="relative max-w-5xl mx-auto px-4">
+      <div className="relative max-w-5xl mx-auto px-4 border-t border-honey-light/30 pt-10">
+        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-honey-dark mb-8 text-center opacity-70">
+          Explorar por categoría
+        </p>
         <div
           ref={scrollRef}
           className="flex overflow-x-auto justify-center gap-2 md:gap-3 pb-4 no-scrollbar scroll-smooth mask-horizontal"

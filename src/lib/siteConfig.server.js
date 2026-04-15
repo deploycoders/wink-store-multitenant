@@ -36,7 +36,16 @@ export const getTenantIdBySlugCached = unstable_cache(
       .eq("slug", tenantSlug)
       .eq("status", "Active")
       .maybeSingle();
-    return data?.tenant_id || null;
+
+    if (data?.tenant_id) return data.tenant_id;
+
+    // Fallback por si el status en la base de datos no es exactamente "Active"
+    const { data: fallback } = await supabase
+      .from("tenants")
+      .select("tenant_id")
+      .eq("slug", tenantSlug)
+      .maybeSingle();
+    return fallback?.tenant_id || null;
   },
   ["tenant-id-by-slug"],
   { revalidate: 900 },
@@ -101,12 +110,12 @@ export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {
       ...DEFAULT_PRODUCTS_INTRO,
       ...(data.products_intro || {}),
     },
-    header_menu: normalizeHeaderMenu(
-      data.header_menu || DEFAULT_HEADER_MENU,
-    ),
+    header_menu: normalizeHeaderMenu(data.header_menu || DEFAULT_HEADER_MENU),
     promo_divider: normalizePromoDivider(data.promo_divider),
     footer_settings: normalizeFooterSettings(
-      data.footer_settings || resolveLegacyFooterSettings(data) || DEFAULT_FOOTER_SETTINGS,
+      data.footer_settings ||
+        resolveLegacyFooterSettings(data) ||
+        DEFAULT_FOOTER_SETTINGS,
     ),
     commerce_settings: normalizeCommerceSettings(
       data.commerce_settings ||
