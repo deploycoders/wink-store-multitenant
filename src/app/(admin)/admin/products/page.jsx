@@ -22,6 +22,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [viewOnly, setViewOnly] = useState(false);
@@ -107,6 +109,19 @@ export default function ProductsPage() {
 
     return matchesSearch && matchesStatus;
   });
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, pageSize, products.length]);
+
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + pageSize,
+  );
 
   const handleCreate = () => {
     setEditingProduct(null);
@@ -308,6 +323,23 @@ export default function ProductsPage() {
           <option value="Borradores">Borradores</option>
           <option value="Stock bajo">Stock bajo</option>
         </select>
+
+        <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Mostrar
+            </span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-black uppercase tracking-widest cursor-pointer"
+            >
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4">
@@ -426,7 +458,7 @@ export default function ProductsPage() {
                 </td>
               </tr>
             ) : filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
+              paginatedProducts.map((product) => (
                 <tr
                   key={product.id}
                   className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group"
@@ -541,6 +573,46 @@ export default function ProductsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Paginación (debajo de la tabla) */}
+      {!loading && filteredProducts.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Mostrando{" "}
+              <span className="text-slate-700 dark:text-slate-200">
+                {startIndex + 1}-{Math.min(startIndex + pageSize, totalItems)}
+              </span>{" "}
+              de{" "}
+              <span className="text-slate-700 dark:text-slate-200">
+                {totalItems}
+              </span>
+            </p>
+
+            <div className="flex items-center justify-between sm:justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={loading || currentPage <= 1}
+                className="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+              >
+                Anterior
+              </button>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                {currentPage}/{totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={loading || currentPage >= totalPages}
+                className="h-10 px-4 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ProductForm
         show={showForm}

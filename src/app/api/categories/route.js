@@ -35,9 +35,10 @@ export async function GET(request) {
 
   if (tenantId) {
     if (effectiveStoreType) {
-      // Retorna las globales del store_type + las personalizadas del tenant
+      // Retorna las globales del store_type + las personalizadas del tenant (mismo store_type).
+      // Back-compat: incluye tenant categories con store_type NULL.
       query = query.or(
-        `tenant_id.eq.${tenantId},and(tenant_id.is.null,store_type.eq.${effectiveStoreType})`
+        `and(tenant_id.eq.${tenantId},store_type.eq.${effectiveStoreType}),and(tenant_id.eq.${tenantId},store_type.is.null),and(tenant_id.is.null,store_type.eq.${effectiveStoreType})`,
       );
     } else {
       // Solo las del tenant
@@ -87,6 +88,7 @@ export async function POST(request) {
       parent_id,
       parent_ids,
       image_url,
+      store_type: storeTypeFromPayload,
       tenant_id: payloadTenantId,
     } = body;
 
@@ -136,6 +138,16 @@ export async function POST(request) {
     const normalizedParentIds = normalizeParentIds(parent_ids ?? parent_id);
     const legacyParentId = normalizedParentIds[0] || null;
 
+    let storeTypeToPersist = storeTypeFromPayload || null;
+    if (!storeTypeToPersist) {
+      const { data: tenantData } = await supabase
+        .from("tenants")
+        .select("store_type")
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+      storeTypeToPersist = tenantData?.store_type || null;
+    }
+
     const { data, error } = await supabase
       .from("categories")
       .insert([
@@ -145,6 +157,7 @@ export async function POST(request) {
           parent_id: legacyParentId,
           image_url: image_url || null,
           tenant_id: tenantId, // Usamos el ID validado por el contexto
+          store_type: storeTypeToPersist,
         },
       ])
       .select()

@@ -14,6 +14,10 @@ import {
   List,
   Store,
   X,
+  Flower2,
+  Plus,
+  Save,
+  Info,
 } from "lucide-react";
 import {
   getTenantConfig,
@@ -40,6 +44,12 @@ const STORE_TYPES = [
     icon: <Utensils size={20} />,
     color: "bg-red-500",
   },
+  {
+    id: "florist",
+    name: "Floristería",
+    icon: <Flower2 size={20} />,
+    color: "bg-green-500",
+  },
 ];
 
 export default function CategoriesPage() {
@@ -47,11 +57,35 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [tenantId, setTenantId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [selectedType, setSelectedType] = useState(""); // Estado para el nicho seleccionado
+  const [sortMode, setSortMode] = useState("A-Z"); // A-Z | Z-A
   const [expandedCategories, setExpandedCategories] = useState({});
   const [isStoreTypeModalOpen, setIsStoreTypeModalOpen] = useState(false);
   const [storeTypeSearchTerm, setStoreTypeSearchTerm] = useState("");
   const [storeTypeViewMode, setStoreTypeViewMode] = useState("grid"); // "grid" o "list"
+
+  const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] =
+    useState(false);
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategorySlug, setNewCategorySlug] = useState("");
+
+  const slugify = (value) =>
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+  const selectedStoreTypeLabel =
+    STORE_TYPES.find((t) => t.id === selectedType)?.name ||
+    (selectedType ? selectedType : "—");
 
   // ... dentro de CategoriesPage
   useEffect(() => {
@@ -134,8 +168,78 @@ export default function CategoriesPage() {
     cat.name.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedType, pageSize, sortMode, categories.length]);
+
+  const sortDir = sortMode === "Z-A" ? -1 : 1;
+  const sortTreeByName = (nodes = []) => {
+    const sorted = [...(nodes || [])].sort(
+      (a, b) =>
+        String(a?.name || "").localeCompare(String(b?.name || "")) * sortDir,
+    );
+    return sorted.map((node) => ({
+      ...node,
+      subcategories: node?.subcategories
+        ? sortTreeByName(node.subcategories)
+        : node?.subcategories,
+    }));
+  };
+  const sortedCategories = sortTreeByName(filteredCategories);
+
+  const totalItems = sortedCategories.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedCategories = sortedCategories.slice(
+    startIndex,
+    startIndex + pageSize,
+  );
+
   const toggleExpand = (id) => {
     setExpandedCategories((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const openCreateCategoryModal = () => {
+    if (!selectedType) return;
+    setNewCategoryName("");
+    setNewCategorySlug("");
+    setIsCreateCategoryModalOpen(true);
+  };
+
+  const handleCreateCategory = async (e) => {
+    e.preventDefault();
+    if (!tenantId || !selectedType) return;
+
+    const name = String(newCategoryName || "").trim();
+    const slug = String(newCategorySlug || "").trim();
+    if (!name || !slug) return;
+
+    try {
+      setCreatingCategory(true);
+      const resp = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          slug,
+          tenant_id: tenantId,
+          store_type: selectedType,
+        }),
+      });
+      const resJson = await resp.json();
+      if (!resp.ok || !resJson?.success) {
+        throw new Error(resJson?.error || "No se pudo crear la categoría");
+      }
+
+      setIsCreateCategoryModalOpen(false);
+      await fetchCategories(selectedType);
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "No se pudo crear la categoría");
+    } finally {
+      setCreatingCategory(false);
+    }
   };
 
   return (
@@ -143,35 +247,86 @@ export default function CategoriesPage() {
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
-            Catálogo Maestro
+            Categorías
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
             Revisa las categorías predeterminadas o cambia el nicho principal.
           </p>
         </div>
-        <button
-          onClick={() => setIsStoreTypeModalOpen(true)}
-          className="flex cursor-pointer items-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none"
-        >
-          <Store size={16} />
-          {selectedType ? "CAMBIAR NICHO" : "ELEGIR NICHO"}
-        </button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={openCreateCategoryModal}
+            disabled={!selectedType || !tenantId || loading}
+            className="flex items-center cursor-pointer justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-black text-xs uppercase tracking-widest shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            title={
+              !selectedType
+                ? "Selecciona un nicho para poder crear categorías"
+                : !tenantId
+                  ? "No se pudo resolver el tenant"
+                  : "Crear categoría customizada"
+            }
+          >
+            <Plus size={16} />
+            Agregar Categoría
+          </button>
+
+          <button
+            onClick={() => setIsStoreTypeModalOpen(true)}
+            className="flex cursor-pointer items-center justify-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none"
+          >
+            <Store size={16} />
+            {selectedType ? "CAMBIAR NICHO" : "ELEGIR NICHO"}
+          </button>
+        </div>
       </header>
 
       {/* Buscador */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4">
-        <div className="relative w-full">
-          <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            size={18}
-          />
-          <input
-            type="text"
-            placeholder="Buscar en el catálogo seleccionado..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-sm transition-all"
-          />
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="relative w-full flex-1">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Buscar en el catálogo seleccionado..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-sm transition-all"
+            />
+          </div>
+
+          <div className="flex items-center justify-between md:justify-end gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Orden
+              </span>
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-black uppercase tracking-widest cursor-pointer"
+              >
+                <option value="A-Z">A-Z</option>
+                <option value="Z-A">Z-A</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Mostrar
+              </span>
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-xl focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-black uppercase tracking-widest cursor-pointer"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -204,7 +359,7 @@ export default function CategoriesPage() {
                 </td>
               </tr>
             ) : filteredCategories.length > 0 ? (
-              filteredCategories.map((category) => (
+              paginatedCategories.map((category) => (
                 <React.Fragment key={category.id}>
                   <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4">
@@ -237,9 +392,15 @@ export default function CategoriesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-500/20">
-                        <Tags size={10} /> Oficial
-                      </span>
+                      {category.tenant_id ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-slate-600 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-indigo-100 dark:border-indigo-500/20">
+                          <Tags size={10} /> Custom
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-500/20">
+                          <Tags size={10} /> Oficial
+                        </span>
+                      )}
                     </td>
                   </tr>
 
@@ -290,6 +451,164 @@ export default function CategoriesPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Paginación (debajo de la tabla) */}
+      {!loading && filteredCategories.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <p className="text-[10px] font-black uppercase text-center tracking-widest text-slate-400">
+              Mostrando{" "}
+              <span className="text-slate-700 dark:text-slate-200">
+                {startIndex + 1}-{Math.min(startIndex + pageSize, totalItems)}
+              </span>{" "}
+              de{" "}
+              <span className="text-slate-700 dark:text-slate-200">
+                {totalItems}
+              </span>
+            </p>
+
+            <div className="flex items-center justify-between sm:justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={loading || currentPage <= 1}
+                className="h-10 px-4 rounded-xl border cursor-pointer border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+              >
+                Anterior
+              </button>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+                {currentPage}/{totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={loading || currentPage >= totalPages}
+                className="h-10 px-4 rounded-xl border cursor-pointer border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Crear Categoría Custom */}
+      {isCreateCategoryModalOpen && (
+        <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-md transition-all">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl sm:rounded-[3rem] shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-300">
+            <div className="p-5 sm:p-8 pb-4 sm:pb-6 border-b border-slate-50 dark:border-slate-800 flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
+                  <Tags size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg sm:text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+                    Nueva Categoría
+                  </h3>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1 uppercase tracking-[0.2em]">
+                    Se agregará a tu tienda (custom)
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsCreateCategoryModalOpen(false)}
+                className="rounded-xl p-2 sm:p-3 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                disabled={creatingCategory}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleCreateCategory}
+              className="p-5 sm:p-8 space-y-5"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Nicho (store_type)
+                  </label>
+                  <input
+                    value={selectedStoreTypeLabel}
+                    readOnly
+                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-100 dark:border-slate-700 rounded-2xl font-black text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Slug
+                  </label>
+                  <input
+                    value={newCategorySlug}
+                    readOnly
+                    placeholder="ej: rosas"
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-slate-900 dark:focus:border-white outline-none font-black text-sm transition-all"
+                  />
+                  <p className="text-[10px] text-slate-400 font-bold">
+                    El slug es generado automáticamente y se usará como URL:{" "}
+                    <span className="font-black">
+                      /{newCategorySlug || "slug"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  Nombre de la categoría
+                </label>
+                <input
+                  value={newCategoryName}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setNewCategoryName(next);
+                    setNewCategorySlug(slugify(next));
+                  }}
+                  placeholder="ej: Ramos de rosas"
+                  className="w-full px-4 py-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-slate-900 dark:focus:border-white outline-none font-black text-sm transition-all"
+                />
+                <div className="flex gap-1 mt-2">
+                  <Info size={12} className="text-amber-500" />
+                  <span className="text-[9.5px] text-amber-500 font-bold">
+                    Nota: Verifica el nombre antes de guardar, las categorias no
+                    se pueden editar luego
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateCategoryModalOpen(false)}
+                  className="h-11 px-5 rounded-2xl cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition-all duration-150 text-xs font-black uppercase tracking-widest"
+                  disabled={creatingCategory}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    creatingCategory ||
+                    !tenantId ||
+                    !selectedType ||
+                    !newCategoryName.trim() ||
+                    !newCategorySlug.trim()
+                  }
+                  className="h-11 px-6 rounded-2xl cursor-pointer bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs hover:bg-slate-800 hover:text-slate-100 transition-all duration-150 font-black uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {creatingCategory ? (
+                    <Loader2 className="animate-spin" size={16} />
+                  ) : (
+                    <Save size={16} />
+                  )}
+                  Guardar categoría
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modal para Elegir Nicho */}
       {isStoreTypeModalOpen && (
@@ -412,7 +731,9 @@ export default function CategoriesPage() {
                             : "bg-slate-50 dark:bg-slate-900 text-slate-500 group-hover:bg-slate-100 dark:group-hover:bg-slate-700"
                         }`}
                       >
-                        {React.cloneElement(type.icon, { size: storeTypeViewMode === "grid" ? 18 : 16 })}
+                        {React.cloneElement(type.icon, {
+                          size: storeTypeViewMode === "grid" ? 18 : 16,
+                        })}
                       </div>
                       <span
                         className={

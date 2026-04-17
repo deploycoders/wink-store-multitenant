@@ -52,7 +52,7 @@ const PricingStock = ({
             name="price"
             step="0.01"
             placeholder="0.00"
-            className="h-10 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 dark:text-white rounded-md font-bold text-lg px-3 focus-visible:ring-1 focus-visible:ring-slate-400 transition-all"
+            className="h-10 border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950 dark:text-white rounded-md font-bold text-lg px-3 focus-visible:ring-1 focus-visible:ring-slate-400 transition-all no-spin"
             value={formData.price}
             onChange={handleChange}
             disabled={readOnly}
@@ -94,7 +94,7 @@ const PricingStock = ({
               name="discount_price"
               step="0.01"
               placeholder="0.00"
-              className={`h-10 rounded-md font-bold text-lg px-3 focus-visible:ring-1 transition-all ${
+              className={`h-10 rounded-md font-bold text-lg px-3 focus-visible:ring-1 transition-all no-spin ${
                 hasDiscount
                   ? "bg-white dark:bg-slate-900 border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 focus-visible:ring-rose-400"
                   : "bg-slate-50/50 dark:bg-slate-950 border-slate-100 dark:border-slate-800 text-slate-400 focus-visible:ring-rose-200"
@@ -124,10 +124,10 @@ const PricingStock = ({
             type="number"
             name="stock"
             placeholder="0"
-            className={`h-10 border-slate-100 dark:border-slate-800 rounded-md font-bold text-lg px-3 transition-all ${
+            className={`h-10 border-slate-100 dark:border-slate-800 rounded-md font-bold text-lg px-3 transition-all no-spin ${
               autoCalculated
                 ? "bg-transparent dark:text-slate-400 cursor-not-allowed border-none text-slate-500 shadow-none"
-                : "bg-slate-50/50 dark:bg-slate-950 dark:text-white focus-visible:ring-1 focus-visible:ring-slate-400"
+                : "bg-slate-50/50 dark:bg-slate-950 dark:text-white focus-visible:ring-1 focus-visible:ring-slate-400 border-dashed"
             }`}
             value={autoCalculated ? effectiveStock : formData.stock}
             onChange={handleChange}

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import {
   Upload,
   Loader2,
@@ -7,6 +7,7 @@ import {
   Layers,
   Share2,
   Star,
+  Search,
 } from "lucide-react";
 import { CLOUDINARY_CONFIG } from "./config";
 
@@ -20,6 +21,52 @@ const MediaAndStatus = ({
   handleCategoryChange,
   readOnly = false,
 }) => {
+  const [categorySearch, setCategorySearch] = useState("");
+
+  const flatCategories = useMemo(() => {
+    if (!Array.isArray(categories)) return [];
+
+    /** @type {{id:any,name:string,slug?:string,parentName?:string}[]} */
+    const out = [];
+
+    const walk = (nodes = [], parentName = null) => {
+      for (const node of nodes || []) {
+        if (!node) continue;
+        out.push({
+          id: node.id,
+          name: String(node.name || ""),
+          slug: node.slug,
+          parentName: parentName || null,
+        });
+        if (
+          Array.isArray(node.subcategories) &&
+          node.subcategories.length > 0
+        ) {
+          walk(node.subcategories, String(node.name || parentName || ""));
+        }
+      }
+    };
+
+    walk(categories, null);
+    return out;
+  }, [categories]);
+
+  const filteredCategories = useMemo(() => {
+    const q = String(categorySearch || "")
+      .trim()
+      .toLowerCase();
+    if (!q) return flatCategories;
+    return flatCategories.filter((c) => {
+      const name = String(c.name || "").toLowerCase();
+      const parent = String(c.parentName || "").toLowerCase();
+      return name.includes(q) || parent.includes(q);
+    });
+  }, [flatCategories, categorySearch]);
+
+  const visibleCategories = useMemo(() => {
+    return filteredCategories;
+  }, [filteredCategories]);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 delay-300">
       {/* Galería de Fotos */}
@@ -79,46 +126,82 @@ const MediaAndStatus = ({
       </div>
 
       {/* Categorización */}
-      <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-md space-y-4 border border-slate-100 dark:border-slate-700/50">
+      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-md space-y-4 border border-slate-100 dark:border-slate-700/50">
         <div className="space-y-3">
           <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
             <Tag size={12} /> Categorías (Multi-selección)
           </label>
 
-          <div className="flex flex-wrap gap-2">
-            {/* 1. CASO: Todavía no han llegado los datos (Loading) */}
-            {categories === null ? (
-              <div className="flex items-center gap-2 py-2">
-                <Loader2 size={12} className="animate-spin text-indigo-500" />
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
-                  Cargando categorías...
-                </span>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative flex-1">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                />
+                <input
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  placeholder="Buscar categoría..."
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white text-xs font-bold outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white"
+                />
               </div>
-            ) : Array.isArray(categories) && categories.length > 0 ? (
-              // 2. CASO: Hay categorías cargadas
-              categories.map((cat) => {
-                const isSelected = formData.category_ids?.includes(cat.id);
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => !readOnly && handleCategoryChange(cat.id)}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all border ${
-                      isSelected
-                        ? "bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 shadow-lg scale-105"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500"
-                    } ${readOnly ? "cursor-default opacity-80" : "cursor-pointer"}`}
-                  >
-                    {cat.name}
-                  </button>
-                );
-              })
-            ) : (
-              // 3. CASO: La API respondió pero el array está vacío realmente
-              <p className="text-[10px] text-slate-400 italic py-2">
-                No hay categorías disponibles...
-              </p>
-            )}
+            </div>
+
+            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+              {formData.category_ids?.length || 0} seleccionada(s) ·{" "}
+              {filteredCategories.length} disponible(s)
+            </p>
+
+            <div className="h-48 overflow-y-auto pr-1">
+              <div className="flex flex-wrap gap-2">
+                {/* 1. CASO: Todavía no han llegado los datos (Loading) */}
+                {categories === null ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2
+                      size={12}
+                      className="animate-spin text-indigo-500"
+                    />
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">
+                      Cargando categorías...
+                    </span>
+                  </div>
+                ) : Array.isArray(categories) && categories.length > 0 ? (
+                  // 2. CASO: Hay categorías cargadas
+                  visibleCategories.map((cat) => {
+                    const isSelected = formData.category_ids?.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() =>
+                          !readOnly && handleCategoryChange(cat.id)
+                        }
+                        className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all border ${
+                          isSelected
+                            ? "bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 shadow-lg scale-105"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500"
+                        } ${readOnly ? "cursor-default opacity-80" : "cursor-pointer"}`}
+                        title={
+                          cat.parentName
+                            ? `${cat.name} (${cat.parentName})`
+                            : cat.name
+                        }
+                      >
+                        {cat.parentName
+                          ? `${cat.name} · ${cat.parentName}`
+                          : cat.name}
+                      </button>
+                    );
+                  })
+                ) : (
+                  // 3. CASO: La API respondió pero el array está vacío realmente
+                  <p className="text-[10px] text-slate-400 italic py-2">
+                    No hay categorías disponibles...
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -260,7 +260,8 @@ export default function ProductView({ product }) {
             </div>
           ) : (
             <p className="text-xs text-honey-dark italic">
-              Talla única disponible
+              Producto sin variantes. Agrega al carrito o compra ahora para
+              continuar.
             </p>
           )}
 

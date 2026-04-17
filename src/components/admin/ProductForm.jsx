@@ -228,8 +228,48 @@ const ProductForm = ({
     }
   };
 
+  const validateForm = () => {
+    const errors = [];
+    if (!formData.name?.trim()) errors.push("El nombre es obligatorio");
+    if (!formData.category_ids || formData.category_ids.length === 0)
+      errors.push("Selecciona al menos una categoría");
+    if (!formData.price || parseFloat(formData.price) <= 0)
+      errors.push("El precio base debe ser mayor a 0");
+
+    // Si no hay variantes, el stock debe ser >= 0
+    if (formData.variants.length === 0) {
+      if (formData.stock === "" || isNaN(formData.stock))
+        errors.push("El stock es obligatorio para productos sin variantes");
+    }
+
+    if (errors.length > 0) {
+      const Toast = Swal.mixin({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+          toast.onmouseenter = Swal.stopTimer;
+          toast.onmouseleave = Swal.resumeTimer;
+        },
+      });
+
+      Toast.fire({
+        icon: "warning",
+        title: "Faltan datos",
+        html: `<ul class="text-xs text-left list-disc pl-4">${errors.map((e) => `<li>${e}</li>`).join("")}</ul>`,
+      });
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateForm()) return;
+
     setLoading(true);
 
     try {

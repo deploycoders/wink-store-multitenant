@@ -44,6 +44,7 @@ const RolesManager = () => {
   const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
   const [tenantLimit, setTenantLimit] = useState(1);
+  const [tenantLimitLoading, setTenantLimitLoading] = useState(true);
   const [effectiveTenantId, setEffectiveTenantId] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -82,10 +83,12 @@ const RolesManager = () => {
       setCurrentUser(user);
     });
     (async () => {
+      setTenantLimitLoading(true);
       try {
         const { data: auth } = await supabase.auth.getUser();
         const user = auth?.user;
         if (!user?.id) {
+          setTenantLimitLoading(false);
           fetchStaff();
           return;
         }
@@ -111,6 +114,7 @@ const RolesManager = () => {
           setTenantLimit(1);
         }
       } finally {
+        setTenantLimitLoading(false);
         fetchStaff();
       }
     })();
@@ -314,7 +318,16 @@ const RolesManager = () => {
             Administración de permisos y personal de la plataforma.
           </p>
         </div>
-        {staff.length >= tenantLimit ? (
+        {tenantLimitLoading || loading ? (
+          <button
+            disabled
+            className="flex items-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest cursor-not-allowed"
+            title="Validando límite del plan..."
+          >
+            <Loader2 className="animate-spin" size={16} />
+            VALIDANDO...
+          </button>
+        ) : staff.length >= tenantLimit ? (
           <button
             disabled
             className="flex items-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest cursor-not-allowed"
