@@ -61,18 +61,18 @@ export default function AdminSidebar({
         <X size={24} />
       </button>
 
-      <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden scrollbar-none h-full">
+      <div className="flex-1 flex flex-col overflow-y-auto overflow-x-hidden h-full scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800 scrollbar-track-transparent pr-1">
         {/* LOGO */}
         <div
-          className={`flex px-8 py-10 ${isCollapsed ? "justify-center px-11" : "justify-start"}`}
+          className={`flex px-8 py-10 transition-all duration-500 overflow-hidden ${isCollapsed ? "justify-center px-0 w-20" : "justify-start px-8 w-full"}`}
         >
           <h2 className="font-black tracking-tighter text-2xl uppercase whitespace-nowrap text-slate-900 dark:text-white">
-            <span className="hidden lg:block">
+            <span className="hidden lg:block truncate">
               {isCollapsed
-                ? site_name.substring(0, 2).toUpperCase()
+                ? site_name.substring(0, 1).toUpperCase()
                 : site_name.toUpperCase()}
             </span>
-            <span className="lg:hidden">{site_name.toUpperCase()}</span>
+            <span className="lg:hidden truncate">{site_name.toUpperCase()}</span>
           </h2>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCartStore } from "@/lib/useCartStore";
+import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import { Button } from "@/components/ui/button";
 import {
   ShoppingBag,
@@ -18,6 +18,7 @@ import CartItemCard from "@/components/public/cart/CartItemCard";
 import CartSummary from "@/components/public/cart/CartSummary";
 
 export default function CartPage() {
+  const { tenant_slug, commerce_settings } = useSiteConfig();
   const {
     items,
     removeItem,
@@ -25,8 +26,7 @@ export default function CartPage() {
     getTotalPrice,
     getTotalItems,
     clearCart,
-  } = useCartStore();
-  const { tenant_slug, commerce_settings } = useSiteConfig();
+  } = useTenantCart(tenant_slug);
   const [mounted, setMounted] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
 

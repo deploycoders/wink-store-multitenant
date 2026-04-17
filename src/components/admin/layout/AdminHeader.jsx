@@ -59,8 +59,8 @@ export default function AdminHeader({
       </div>
 
       {/* Centro (Título Móvil) */}
-      <div className="lg:hidden flex-1 flex justify-center items-center">
-        <span className="font-black uppercase tracking-tighter text-sm text-slate-900 dark:text-white">
+      <div className="lg:hidden flex-1 flex justify-center items-center px-2 overflow-hidden">
+        <span className="font-black uppercase tracking-tighter text-sm sm:text-base text-slate-900 dark:text-white truncate max-w-full text-center">
           {site_name} Admin
         </span>
       </div>

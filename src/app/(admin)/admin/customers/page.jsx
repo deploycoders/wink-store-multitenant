@@ -10,9 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  formatWhatsappContactNumber,
-} from "@/lib/siteConfig";
+import { formatWhatsappContactNumber } from "@/lib/siteConfig";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 
 export default function CustomersPage() {
@@ -25,17 +23,20 @@ export default function CustomersPage() {
 
   const getErrorMessage = (error) =>
     error?.message || error?.details || "Error desconocido";
-  const toOrderCode = (id) => String(id || "").slice(-6).toUpperCase();
+  const toOrderCode = (order) => {
+    if (order?.order_number) return String(order.order_number).padStart(5, "0");
+    return String(order?.id || "")
+      .slice(-6)
+      .toUpperCase();
+  };
 
   const buildCustomerFromOrder = (order, index = 0) => {
     const embedded = order?.customer || order?.cliente || {};
     const nombre =
-      embedded?.full_name ||
-      order?.customer_name ||
-      "Cliente sin nombre";
+      embedded?.full_name || order?.customer_name || "Cliente sin nombre";
     const telefono = embedded?.phone || order?.customer_phone || "";
     const cedula = embedded?.id_number || order?.customer_id_number || "";
-    const email = embedded?.email || order?.email || "";
+    const email = embedded?.email || order?.customer_email || "";
     const fallbackKey = `${telefono || "sin-telefono"}-${cedula || "sin-cedula"}-${email || "sin-email"}-${index}`;
 
     return {
@@ -60,8 +61,14 @@ export default function CustomersPage() {
         query = query.eq("tenant_id", tenantId);
       }
 
-      const { data, error } = await query.order("nombre_completo");
-      if (!error) return (data || []).map(row => ({ ...row, nombre_completo: row.full_name, cedula: row.id_number, telefono: row.phone }));
+      const { data, error } = await query.order("full_name");
+      if (!error)
+        return (data || []).map((row) => ({
+          ...row,
+          nombre_completo: row.full_name,
+          cedula: row.id_number,
+          telefono: row.phone,
+        }));
 
       lastError = error;
 
@@ -74,7 +81,13 @@ export default function CustomersPage() {
           .from(tableName)
           .select("id, full_name, id_number, phone, email")
           .order("full_name");
-        if (!retry.error) return (retry.data || []).map(row => ({ ...row, nombre_completo: row.full_name, cedula: row.id_number, telefono: row.phone }));
+        if (!retry.error)
+          return (retry.data || []).map((row) => ({
+            ...row,
+            nombre_completo: row.full_name,
+            cedula: row.id_number,
+            telefono: row.phone,
+          }));
         lastError = retry.error;
       }
     }
@@ -99,7 +112,9 @@ export default function CustomersPage() {
 
       let ordersQuery = supabase
         .from("orders")
-        .select("id, total, estado, created_at, tenant_id, customer_name, customer_id, customer_id_number, customer_phone");
+        .select(
+          "id, total, estado, created_at, tenant_id, customer_name, customer_id, customer_id_number, customer_phone, customer_email, items, referencia_pago, metodo_pago, notas, order_number",
+        );
       ordersQuery = ordersQuery.eq("tenant_id", tenantId);
 
       const { data: ordersData, error: ordersError } = await ordersQuery.order(
@@ -140,7 +155,6 @@ export default function CustomersPage() {
         });
         setCustomers(Array.from(grouped.values()));
       }
-
     } catch (error) {
       console.error("Error cargando clientes:", getErrorMessage(error));
     } finally {
@@ -296,11 +310,11 @@ export default function CustomersPage() {
 
       {/* Modal de Detalles del Cliente */}
       {selectedCustomer && (
-        <div className="fixed inset-0 min-h-screen z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-4xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 p-8 relative">
+        <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
             <button
               onClick={() => setSelectedCustomer(null)}
-              className="absolute top-6 right-6 p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
+              className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all z-10"
             >
               <X size={20} />
             </button>
@@ -379,11 +393,10 @@ export default function CustomersPage() {
               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 pb-2">
                 Historial de Compras
               </h3>
-              <div className="bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700/50 overflow-hidden">
-                {selectedCustomer.orders &&
-                selectedCustomer.orders.length > 0 ? (
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-100/50 dark:bg-slate-900/50">
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800 overflow-hidden">
+                <div className="overflow-x-auto max-h-[300px] overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-left border-collapse min-w-[600px]">
+                    <thead className="bg-slate-100/50 dark:bg-slate-900/80 sticky top-0 z-10">
                       <tr>
                         <th className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
                           Orden
@@ -409,40 +422,66 @@ export default function CustomersPage() {
                             new Date(b.created_at) - new Date(a.created_at),
                         )
                         .map((order) => (
-                          <tr key={order.id}>
+                          <tr key={order.id} className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30 transition-colors">
                             <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
-                              #{toOrderCode(order.id)}
+                              #{toOrderCode(order)}
                             </td>
-                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300 text-xs">
                               {new Date(order.created_at).toLocaleDateString()}
                             </td>
-                            <td className="px-4 py-3 text-slate-400 dark:text-slate-500 text-[10px] italic">
-                              No disponible en este esquema
+                            <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
+                              <div className="flex flex-col gap-1">
+                                {order.items && Array.isArray(order.items) ? (
+                                  order.items.slice(0, 3).map((item, i) => (
+                                    <span
+                                      key={i}
+                                      className="text-[10px] font-medium block leading-tight truncate max-w-[200px]"
+                                    >
+                                      {item.name || item.title} (x
+                                      {item.quantity})
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-[10px] italic text-slate-400">
+                                    Sin detalle
+                                  </span>
+                                )}
+                                {order.items?.length > 3 && (
+                                  <span className="text-[9px] font-bold text-slate-400">
+                                    + {order.items.length - 3} más...
+                                  </span>
+                                )}
+                              </div>
                             </td>
-                            <td className="px-4 py-3 font-bold text-slate-900 dark:text-white">
+                            <td className="px-4 py-3 font-bold text-slate-900 dark:text-white text-xs">
                               ${Number(order.total).toFixed(2)}
                             </td>
                             <td className="px-4 py-3">
                               <span
-                                className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                className={`px-2 py-0.5 rounded-full uppercase text-[8px] font-black tracking-widest ${
                                   order.estado === "pending"
-                                    ? "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400"
+                                    ? "bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400"
                                     : order.estado === "paid"
-                                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                                      : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                                      ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"
+                                      : "bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                                 }`}
                               >
-                                {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
+                                {order.estado === "pending"
+                                  ? "Pendiente"
+                                  : order.estado === "paid"
+                                    ? "Pagado"
+                                    : "Cancelado"}
                               </span>
                             </td>
                           </tr>
                         ))}
                     </tbody>
                   </table>
-                ) : (
-                  <p className="p-4 text-xs text-slate-500 italic text-center">
-                    Este cliente no ha realizado compras aún.
-                  </p>
+                </div>
+                {selectedCustomer.orders.length === 0 && (
+                  <div className="p-12 text-center text-slate-400 italic text-xs">
+                    Este cliente aún no ha realizado compras.
+                  </div>
                 )}
               </div>
             </div>

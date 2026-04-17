@@ -63,7 +63,7 @@ export default async function TenantSelectorPage() {
     <main className="min-h-screen bg-slate-50 text-zinc-700">
       <header className="border-b border-zinc-200/80 bg-slate-50/95 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto h-16 px-5 md:px-6 flex items-center justify-between">
-          <p className="font-serif text-2xl md:text-3xl italic tracking-tight text-zinc-700">
+          <p className="font-serif text-2xl md:text-3xl tracking-tight text-zinc-700">
             {platformBrand}
           </p>
           <Link

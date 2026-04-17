@@ -1,6 +1,6 @@
 "use client";
 
-import { useCartStore } from "@/lib/useCartStore";
+import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import {
   Sheet,
   SheetContent,
@@ -20,8 +20,8 @@ import { useSiteConfig } from "@/context/SiteConfigContext";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function MiniCart({ open, setOpen }) {
-  const { items, removeItem, updateQuantity, getTotalPrice } = useCartStore();
   const { tenant_slug } = useSiteConfig();
+  const { items, removeItem, updateQuantity, getTotalPrice } = useTenantCart(tenant_slug);
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
 
   const [mounted, setMounted] = useState(

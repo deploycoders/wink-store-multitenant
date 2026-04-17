@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCartStore } from "@/lib/useCartStore";
+import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -20,10 +20,10 @@ import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
-  const [selectedAttrs, setSelectedAttrs] = useState({});
-  const addItem = useCartStore((state) => state.addItem);
-  const router = useRouter();
   const { site_name, tenant_slug } = useSiteConfig();
+  const [selectedAttrs, setSelectedAttrs] = useState({});
+  const { addItem } = useTenantCart(tenant_slug);
+  const router = useRouter();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
 

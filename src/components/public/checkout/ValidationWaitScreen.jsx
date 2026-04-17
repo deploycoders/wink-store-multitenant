@@ -1,7 +1,8 @@
+"use client";
+
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,96 +11,46 @@ import {
   normalizeWhatsappNumber,
 } from "@/lib/siteConfig";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 
 export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
-  const [status, setStatus] = useState("Pendiente");
-  const [motivo, setMotivo] = useState("");
-  const { commerce_settings, tenant_id, tenant_slug } = useSiteConfig();
+  const { commerce_settings, tenant_slug } = useSiteConfig();
+  const { trackings, stopTracking } = useOrderTrackingStore();
+  
+  // Obtenemos el estado desde el store global
+  const tracking = tenant_slug ? trackings[tenant_slug] : null;
+  const currentStatus = tracking?.status || "pending";
+  const orderCode = tracking?.orderCode || (orderId ? String(orderId).slice(-6).toUpperCase() : "N/A");
+
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
+  
   const configuredWhatsapp = normalizeWhatsappNumber(commerce.whatsapp_number);
   const supportWhatsapp = whatsappNumber || configuredWhatsapp;
-  const safeOrderId =
-    orderId !== undefined && orderId !== null ? String(orderId) : "";
-  const orderCode = safeOrderId ? safeOrderId.slice(-6).toUpperCase() : "N/A";
-  const supportMessage = `Hola, mi pedido #${orderCode} fue rechazado. El motivo indicado es: "${motivo}". Necesito ayuda con esto.`;
+  
+  const motivo = currentStatus === "cancelled" 
+    ? "Verifica los datos de tu pago e intenta nuevamente." 
+    : "";
+
+  const supportMessage = `Hola, mi pedido #${orderCode} tiene problemas con la validación. Necesito ayuda.`;
   const supportHref = supportWhatsapp
     ? `https://wa.me/${supportWhatsapp}?text=${encodeURIComponent(supportMessage)}`
-    : tenant_slug
-      ? `/${tenant_slug}/checkout`
-      : "/checkout";
+    : "#";
 
+  // Efecto para disparar el onSuccess cuando el estado cambia a 'paid'
   useEffect(() => {
-    if (!orderId) return;
+    if (currentStatus === "paid") {
+      // Pequeño delay para que el usuario vea la transición si estaba en esta pantalla
+      const timer = setTimeout(() => {
+        onSuccess();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentStatus, onSuccess]);
 
-    const supabase = createClient();
-
-    // Check immediately in case it was processed very fast
-    const checkCurrentStatus = async () => {
-      if (typeof document !== "undefined" && document.visibilityState !== "visible") {
-        return;
-      }
-
-      let query = supabase
-        .from("orders")
-        .select("estado, tenant_id")
-        .eq("id", orderId);
-
-      if (tenant_id) {
-        query = query.eq("tenant_id", tenant_id);
-      }
-
-      const { data, error } = await query.single();
-      if (error) return;
-
-      if (data) {
-        if (data.estado === "paid" || data.estado === "Completado") {
-          onSuccess();
-        } else if (data.estado === "cancelled" || data.estado === "Cancelado") {
-          setStatus("Cancelado");
-          setMotivo("Verifica los datos de tu pago e intenta nuevamente.");
-        }
-      }
-    };
-    checkCurrentStatus();
-
-    // Suscripción a Realtime
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `id=eq.${orderId}`,
-        },
-        (payload) => {
-          if (tenant_id && payload.new.tenant_id !== tenant_id) return;
-          const newStatus = payload.new.estado;
-          if (newStatus === "paid" || newStatus === "Completado") {
-            onSuccess();
-          } else if (newStatus === "cancelled" || newStatus === "Cancelado") {
-            setStatus("Cancelado");
-            setMotivo("Verifica los datos de tu pago e intenta nuevamente.");
-          }
-        }
-      )
-      .subscribe();
-
-    // Polling fallback: En caso de que Realtime no esté activado en la tabla `orders`
-    const intervalId = setInterval(() => {
-      checkCurrentStatus();
-    }, 3000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(intervalId);
-    };
-  }, [orderId, onSuccess, tenant_id]);
-
-  if (status === "Cancelado") {
+  // Si el pago fue rechazado
+  if (currentStatus === "cancelled") {
     return (
       <div className="flex flex-col items-center justify-center py-10 space-y-8 text-center min-h-[50vh]">
         <motion.div
@@ -116,11 +67,11 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
             Pago Rechazado
           </h2>
           <p className="text-honey-dark max-w-sm mx-auto">
-            Lo sentimos, tu pago no pudo ser validado.
+            Lo sentimos, tu pago no pudo ser validado por el administrador.
           </p>
           
           <div className="bg-rose-50 border border-rose-100 p-6 rounded-3xl text-sm font-bold text-rose-800 max-w-md mx-auto">
-            <span className="block text-[10px] uppercase tracking-widest text-rose-400 mb-2">Motivo del rechazo:</span>
+            <span className="block text-[10px] uppercase tracking-widest text-rose-400 mb-2">Sugerencia:</span>
             {motivo}
           </div>
         </div>
@@ -128,23 +79,24 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
         <div className="flex flex-col sm:flex-row gap-4">
           <a
             href={supportHref}
-            target={supportWhatsapp ? "_blank" : undefined}
-            rel={supportWhatsapp ? "noopener noreferrer" : undefined}
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 bg-emerald-500 text-white px-8 h-14 rounded-2xl font-bold uppercase text-[11px] tracking-[0.2em] transition-all hover:scale-105"
           >
              Contactar Soporte
           </a>
-          <Link href={tenant_slug ? `/${tenant_slug}/checkout` : "/checkout"}>
-            <Button className="flex items-center gap-2 bg-ink text-paper px-8 h-14 rounded-2xl font-bold uppercase text-[11px] tracking-[0.2em] transition-all hover:scale-105">
-               Volver a Intentar
-            </Button>
-          </Link>
+          <button 
+            onClick={() => stopTracking(tenant_slug)}
+            className="flex items-center gap-2 bg-ink text-paper px-8 h-14 rounded-2xl font-bold uppercase text-[11px] tracking-[0.2em] transition-all hover:scale-105 cursor-pointer"
+          >
+             <ArrowLeft size={16} /> Volver a Intentar
+          </button>
         </div>
       </div>
     );
   }
 
-  // Waiting Screen
+  // Pantalla de Espera (Pending/Paid transicional)
   return (
     <div className="flex flex-col items-center justify-center py-10 space-y-8 text-center min-h-[50vh]">
       <motion.div
@@ -157,11 +109,13 @@ export function ValidationWaitScreen({ orderId, onSuccess, whatsappNumber }) {
 
       <div className="space-y-4">
         <h2 className="text-2xl font-serif font-black text-ink uppercase tracking-tight animate-pulse">
-          Validando tu pago...
+          {currentStatus === "paid" ? "¡Pago Validado!" : "Validando tu pago..."}
         </h2>
         <p className="text-honey-dark max-w-sm mx-auto text-sm">
-          Por favor, espera en esta pantalla mientras nuestro equipo confirma tu pago.
-          Recuerda que también hemos enviado la solicitud por WhatsApp.
+          {currentStatus === "paid" 
+            ? "Estamos procesando tu orden final. Un momento por favor."
+            : "Por favor, espera en esta pantalla mientras nuestro equipo confirma tu pago vía WhatsApp."
+          }
         </p>
         <div className="text-[10px] uppercase tracking-widest text-honey-dark/50 font-bold bg-white px-4 py-2 rounded-full border border-honey-light inline-block mt-4">
           Orden #{orderCode}

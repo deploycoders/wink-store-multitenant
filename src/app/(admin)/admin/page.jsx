@@ -106,7 +106,7 @@ export default function AdminDashboard() {
       let recentQuery = supabase
         .from("orders")
         .select(
-          "id, total, estado, created_at, customer_id, customer_name, customer_id_number, customer_phone",
+          "id, total, estado, created_at, customer_id, customer_name, customer_id_number, customer_phone, order_number",
         )
         .order("created_at", { ascending: false })
         .limit(5);
@@ -235,7 +235,7 @@ export default function AdminDashboard() {
                       className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors"
                     >
                       <td className="px-6 py-4 font-mono text-xs text-slate-500 dark:text-slate-400">
-                        #{String(order.id).slice(-6).toUpperCase()}
+                        #{order.order_number ? String(order.order_number).padStart(5, "0") : String(order.id).slice(-6).toUpperCase()}
                       </td>
                       <td className="px-6 py-4 text-slate-900 dark:text-slate-200 font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-37.5">
                         {order.clientes?.full_name || "Desconocido"}

@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import Swal from "sweetalert2";
 
 // Store e iconos
-import { useCartStore } from "@/lib/useCartStore";
+import { useCartStore, useTenantCart } from "@/lib/useCartStore";
+import { useOrderTrackingStore } from "@/lib/useOrderTrackingStore";
 import { Button } from "@/components/ui/button";
 
 // Componentes Modulares
@@ -17,6 +18,7 @@ import { SuccessInvoice } from "@/components/public/checkout/SuccessInvoice";
 import { ValidationWaitScreen } from "@/components/public/checkout/ValidationWaitScreen";
 import { HeaderTitle } from "@/components/public/checkout/UIElements";
 import { processCheckoutOrder } from "@/app/actions/public/checkoutActions";
+import { validateEntireForm } from "@/lib/checkoutValidation";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import {
   DEFAULT_COMMERCE_SETTINGS,
@@ -26,7 +28,9 @@ import {
 } from "@/lib/siteConfig";
 
 export default function CheckoutPage() {
-  const { items, getTotalPrice, clearCart } = useCartStore();
+  const { tenant_slug, site_name, commerce_settings, tenant_id } =
+    useSiteConfig();
+  const { items, getTotalPrice, clearCart } = useTenantCart(tenant_slug);
   const [mounted, setMounted] = useState(
     () => useCartStore.persist?.hasHydrated?.() ?? true,
   );
@@ -36,6 +40,7 @@ export default function CheckoutPage() {
   const [isPendingOrderRestored, setIsPendingOrderRestored] = useState(false);
   const [finalTotal, setFinalTotal] = useState(0);
   const [orderId, setOrderId] = useState(null);
+  const [orderNumber, setOrderNumber] = useState(null);
   const [purchasedItems, setPurchasedItems] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -47,8 +52,10 @@ export default function CheckoutPage() {
     reference: "",
     notes: "",
   });
-  const { site_name, commerce_settings, tenant_slug, tenant_id } =
-    useSiteConfig();
+
+  const [idType, setIdType] = useState("V");
+  const [errors, setErrors] = useState({});
+
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
   const commerce = normalizeCommerceSettings(
@@ -70,25 +77,16 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const pending = window.localStorage.getItem("pendingOrderTracking");
-    if (!pending) {
-      setIsPendingOrderRestored(true);
-      return;
-    }
+  const { trackings, startTracking } = useOrderTrackingStore();
 
-    try {
-      const parsed = JSON.parse(pending);
-      if (parsed?.orderId) {
-        setOrderId(String(parsed.orderId));
-        setIsWaiting(true);
-      }
-    } catch (error) {
-      console.warn("Error restaurando pedido pendiente:", error);
-    } finally {
-      setIsPendingOrderRestored(true);
+  useEffect(() => {
+    const currentTracking = trackings[tenant_slug];
+    if (currentTracking?.orderId) {
+      setOrderId(currentTracking.orderId);
+      setIsWaiting(true);
     }
-  }, []);
+    setIsPendingOrderRestored(true);
+  }, [tenant_slug, trackings]);
 
   useEffect(() => {
     if (!isPendingOrderRestored) return;
@@ -110,8 +108,8 @@ export default function CheckoutPage() {
   const handleCustomerFound = (customer) => {
     setFormData((prev) => ({
       ...prev,
-      name: customer.full_name || customer.nombre_completo || "",
-      phone: customer.phone || customer.telefono || "",
+      name: customer.full_name || "",
+      phone: customer.phone || "",
       email: customer.email || "",
     }));
 
@@ -119,7 +117,7 @@ export default function CheckoutPage() {
       toast: true,
       position: "top-end",
       icon: "success",
-      title: `¡Bienvenido de nuevo, ${customer.nombre_completo.split(" ")[0]}!`,
+      title: `¡Bienvenido de nuevo, ${customer.full_name?.split(" ")[0]}!`,
       showConfirmButton: false,
       timer: 3000,
       background: "#FBF9F6",
@@ -128,20 +126,20 @@ export default function CheckoutPage() {
   };
 
   const handleVerifyPayment = () => {
-    if (
-      !formData.name ||
-      !formData.idNumber ||
-      !formData.reference ||
-      !formData.phone ||
-      !selectedPaymentMethod
-    ) {
+    const currentErrors = validateEntireForm(formData, idType);
+    setErrors(currentErrors);
+
+    if (Object.keys(currentErrors).length > 0) {
       Swal.fire({
+        toast: true,
+        position: "top-end",
+        icon: "error",
         title: "¡Atención!",
-        text: "Completa cliente, metodo de pago y referencia para verificar tu pago.",
-        icon: "warning",
-        confirmButtonColor: "#1A1A1A",
-        background: "#FBF9F6",
-        color: "#1A1A1A",
+        text: "Por favor corrige los campos marcados en rojo.",
+        showConfirmButton: false,
+        timer: 3000,
+        background: "#FFF5F5",
+        color: "#C53030",
       });
       return;
     }
@@ -170,8 +168,10 @@ export default function CheckoutPage() {
           color: "#1A1A1A",
         });
 
+        const fullIdNumber = `${idType}${formData.idNumber}`;
         const payload = {
           ...formData,
+          idNumber: fullIdNumber,
           paymentMethod: selectedPaymentMethod,
           tenantId: tenant_id || null,
           tenantSlug: tenant_slug || null,
@@ -219,26 +219,17 @@ export default function CheckoutPage() {
           response?.orderId !== undefined && response?.orderId !== null
             ? String(response.orderId)
             : "";
-        const orderIdShort = safeOrderId
-          ? `(#${safeOrderId.slice(-6).toUpperCase()})`
-          : "";
-        const orderCode = safeOrderId
-          ? safeOrderId.slice(-6).toUpperCase()
-          : "";
+        const safeOrderNumber = response?.orderNumber || "";
+        
+        const displayOrderCode = safeOrderNumber 
+          ? String(safeOrderNumber).padStart(5, "0") 
+          : (safeOrderId ? safeOrderId.slice(-6).toUpperCase() : "");
+
+        const orderIdShort = displayOrderCode ? `(#${displayOrderCode})` : "";
+        const orderCode = displayOrderCode;
 
         if (safeOrderId) {
-          window.localStorage.setItem(
-            "pendingOrderTracking",
-            JSON.stringify({
-              orderId: safeOrderId,
-              status: "pending",
-              rawStatus: "pending",
-              tenantSlug: tenant_slug || "",
-              orderCode,
-              createdAt: Date.now(),
-              updatedAt: Date.now(),
-            }),
-          );
+          startTracking(tenant_slug, safeOrderId, orderCode);
         }
 
         const message = `Hola ${brand}! 👋
@@ -247,7 +238,7 @@ He realizado un pago por ${selectedPaymentMethod}.
 
 📌 *DATOS DEL PAGO*
 - Titular: ${formData.name}
-- CI/RIF: ${formData.idNumber}
+- CI/RIF: ${fullIdNumber}
 - Ref: ${formData.reference}
 - Telf: ${formData.phone}
 
@@ -269,18 +260,21 @@ ${orderDetails}
 
         if (whatsappHref) window.open(whatsappHref, "_blank");
 
-        setFinalTotal(finalTotalCalculated);
-        setOrderId(safeOrderId || null);
-        setPurchasedItems([...items]);
-        clearCart();
-        setIsWaiting(true);
+        if (response.success) {
+          setFinalTotal(finalTotalCalculated);
+          setOrderId(safeOrderId);
+          setOrderNumber(safeOrderNumber);
+          setPurchasedItems([...items]);
+          clearCart();
+          setIsWaiting(true);
+        }
       }
     });
   };
 
   return (
-    <main className="min-h-screen p-6 md:p-10 bg-paper print:bg-white print:p-0 print:min-h-0">
-      <div className="max-w-4xl mx-auto print:max-w-none print:m-0">
+    <main className="min-h-screen p-4 md:p-10 bg-[#F8F9FA] print:bg-white print:p-0 print:min-h-0">
+      <div className="max-w-6xl mx-auto print:max-w-none print:m-0">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -296,45 +290,50 @@ ${orderDetails}
               }}
             />
           ) : !isSuccess ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              <HeaderTitle className="block lg:hidden" />
-              <div className="space-y-8 order-2 lg:order-1">
-                <HeaderTitle className="hidden lg:block" />
+            <div className="flex flex-col lg:flex-row gap-12 items-start">
+              {/* Columna Izquierda: Formularios */}
+              <div className="w-full lg:w-[62%] space-y-10">
+                <HeaderTitle />
 
-                <div className="space-y-8">
-                  <div className="space-y-4">
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink/40 border-b border-zinc-100 pb-2">
-                      01. Información del Cliente
+                <div className="space-y-12">
+                  <div className="space-y-6">
+                    <h2 className="text-sm font-black uppercase tracking-[0.2em] text-ink flex items-center gap-3">
+                      Información del Cliente
                     </h2>
-                    <CustomerForm
-                      formData={formData}
-                      setFormData={setFormData}
-                      onCustomerFound={handleCustomerFound}
-                    />
+                    <div className="bg-white p-6 md:p-8 rounded-md shadow-sm border border-zinc-100">
+                      <CustomerForm
+                        formData={formData}
+                        setFormData={setFormData}
+                        onCustomerFound={handleCustomerFound}
+                        errors={errors}
+                        setErrors={setErrors}
+                        idType={idType}
+                        setIdType={setIdType}
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink/40 border-b border-zinc-100 pb-2">
-                      02. Detalles del Pago
+                  <div className="space-y-6">
+                    <h2 className="text-sm font-black uppercase tracking-[0.2em] text-ink flex items-center gap-3">
+                      Detalles del Pago
                     </h2>
-                    <PaymentFields
-                      formData={formData}
-                      setFormData={setFormData}
-                      paymentMethods={activePaymentMethods}
-                      selectedPaymentMethod={selectedPaymentMethod}
-                      commerceSettings={commerce}
-                    />
+                    <div className="bg-white p-6 md:p-8 rounded-md shadow-sm border border-zinc-100">
+                      <PaymentFields
+                        formData={formData}
+                        setFormData={setFormData}
+                        paymentMethods={activePaymentMethods}
+                        selectedPaymentMethod={selectedPaymentMethod}
+                        commerceSettings={commerce}
+                        errors={errors}
+                        setErrors={setErrors}
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <Button
-                  onClick={handleVerifyPayment}
-                  className="w-full h-16 bg-ink cursor-pointer text-paper hover:bg-ink/90 shadow-2xl shadow-ink/20 font-bold uppercase text-[11px] tracking-[0.2em] rounded-2xl transition-all hover:scale-[1.01] active:scale-[0.98]"
-                >
-                  Verificar Pago & Pedir por WhatsApp
-                </Button>
               </div>
-              <div className="order-1 lg:order-2">
+
+              {/* Columna Derecha: Resumen y Acción */}
+              <div className="w-full lg:w-[38%] lg:sticky lg:top-10">
                 <OrderSummary
                   items={items}
                   subtotal={subtotal}
@@ -342,6 +341,7 @@ ${orderDetails}
                   deliveryFee={deliveryFee}
                   threshold={threshold}
                   brandImageLabel={brandImageLabel}
+                  onVerify={handleVerifyPayment}
                 />
               </div>
             </div>
@@ -351,6 +351,7 @@ ${orderDetails}
               finalTotal={finalTotal}
               purchasedItems={purchasedItems}
               orderId={orderId}
+              orderNumber={orderNumber}
             />
           )}
         </motion.div>

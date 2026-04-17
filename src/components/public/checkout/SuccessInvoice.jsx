@@ -2,12 +2,7 @@
 
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import {
-  CheckCircle2,
-  ShoppingBag,
-  Download,
-  Eye,
-} from "lucide-react";
+import { CheckCircle2, ShoppingBag, Download, Eye } from "lucide-react";
 import Link from "next/link";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
@@ -17,15 +12,17 @@ export function SuccessInvoice({
   finalTotal,
   purchasedItems,
   orderId,
+  orderNumber,
 }) {
   const { site_name, tenant_slug } = useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
 
-  const orderCode = useMemo(
-    () => (orderId ? String(orderId).padStart(5, "0") : "00000"),
-    [orderId],
-  );
+  const orderCode = useMemo(() => {
+    if (orderNumber) return String(orderNumber).padStart(5, "0");
+    if (orderId) return String(orderId).padStart(5, "0");
+    return "00000";
+  }, [orderId, orderNumber]);
 
   const issueDate = useMemo(
     () =>
@@ -95,10 +92,9 @@ export function SuccessInvoice({
           ¡Pago Procesado!
         </h2>
         <p className="text-honey-dark max-w-md mx-auto">
-          Gracias por tu compra,{" "}
-          <span className="font-bold text-ink">{formData.name}</span>. Tu orden{" "}
-          <span className="font-mono font-bold">#{orderCode}</span> ya está en
-          camino.
+          Gracias por tu compra. Tu orden{" "}
+          <span className="font-mono font-bold">#{orderCode}</span> ya fue
+          procesada
         </p>
       </div>
 
@@ -108,7 +104,7 @@ export function SuccessInvoice({
           {/* BOTÓN VER (Pestaña nueva) */}
           <button
             onClick={handleViewPDF}
-            className="flex items-center justify-center gap-2 bg-white border-2 border-ink text-ink h-14 rounded-2xl font-bold uppercase text-[11px] tracking-widest transition-all hover:bg-ink hover:text-white"
+            className="flex items-center cursor-pointer justify-center gap-2 bg-white border-2 border-ink text-ink h-14 rounded-2xl font-bold uppercase text-[11px] tracking-widest transition-all hover:bg-ink hover:text-white"
           >
             <Eye size={18} />
             Ver Factura
@@ -116,7 +112,7 @@ export function SuccessInvoice({
 
           <button
             onClick={handleDownloadPDF}
-            className="flex items-center justify-center gap-2 bg-emerald-600 text-white h-14 rounded-2xl font-bold uppercase text-[11px] tracking-widest transition-all hover:bg-emerald-700"
+            className="flex items-center cursor-pointer justify-center gap-2 bg-emerald-600 text-white h-14 rounded-2xl font-bold uppercase text-[11px] tracking-widest transition-all hover:bg-emerald-700"
           >
             <Download size={18} />
             Descargar

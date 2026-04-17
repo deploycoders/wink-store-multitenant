@@ -24,7 +24,10 @@ export default function OrdersPage() {
   const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
 
-  const toOrderCode = (id) => String(id || "").slice(-6).toUpperCase();
+  const toOrderCode = (order) => {
+    if (order?.order_number) return String(order.order_number).padStart(5, "0");
+    return String(order?.id || "").slice(-6).toUpperCase();
+  };
   const getErrorMessage = (error) =>
     error?.message || error?.details || "Error desconocido";
 
@@ -99,7 +102,7 @@ export default function OrdersPage() {
         return;
       }
 
-      let query = supabase.from("orders").select("*");
+      let query = supabase.from("orders").select("*, order_number");
       query = query.eq("tenant_id", tenantId);
       const { data, error } = await query.order("created_at", {
         ascending: false,
@@ -356,7 +359,7 @@ export default function OrdersPage() {
                 >
                   <td className="px-6 py-4">
                     <span className="font-black text-slate-900 dark:text-white text-xs">
-                      #{toOrderCode(order.id)}
+                      #{toOrderCode(order)}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -436,11 +439,11 @@ export default function OrdersPage() {
 
       {/* Modal de Detalles del Pedido */}
       {selectedOrder && (
-        <div className="fixed inset-0 min-h-screen z-100 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-4xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 p-8 relative">
+        <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
             <button
               onClick={() => setSelectedOrder(null)}
-              className="absolute top-6 cursor-pointer right-6 p-2 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all"
+              className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all z-10"
             >
               <X size={20} />
             </button>
@@ -448,7 +451,7 @@ export default function OrdersPage() {
             <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-6">
               Detalles de la Orden{" "}
               <span className="text-slate-400 dark:text-slate-500">
-                #{toOrderCode(selectedOrder.id)}
+                #{toOrderCode(selectedOrder)}
               </span>
             </h2>
 
@@ -476,12 +479,12 @@ export default function OrdersPage() {
                     </span>{" "}
                     {selectedOrder.clientes?.telefono || "No registrado"}
                   </p>
-                  {selectedOrder.clientes?.email && (
+                  {(selectedOrder.clientes?.email || selectedOrder.customer_email) && (
                     <p>
                       <span className="font-bold text-slate-900 dark:text-slate-300">
                         Email:
                       </span>{" "}
-                      {selectedOrder.clientes.email}
+                      {selectedOrder.clientes?.email || selectedOrder.customer_email}
                     </p>
                   )}
                 </div>

@@ -241,7 +241,11 @@ const resolveLegacyCommerceSettings = (row = {}) => {
 };
 
 const getClientCacheKey = ({ tenantId, tenantSlug } = {}) =>
-  tenantId ? `tenant:${tenantId}` : tenantSlug ? `slug:${tenantSlug}` : "default";
+  tenantId
+    ? `tenant:${tenantId}`
+    : tenantSlug
+      ? `slug:${tenantSlug}`
+      : "default";
 
 const readClientCachedSiteConfig = (key) => {
   const cached = siteConfigClientCache.get(key);

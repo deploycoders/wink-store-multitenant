@@ -52,12 +52,12 @@ const InfoField = ({
   <div
     className={`p-4 rounded-xl border transition-all duration-300 ${
       isEditing && !readOnly
-        ? "bg-white border-slate-900 ring-4 ring-slate-50"
-        : "bg-white border-slate-100 shadow-sm"
-    } ${readOnly ? "bg-slate-50/50" : ""}`}
+        ? "bg-white dark:bg-slate-800 border-slate-900 dark:border-white ring-4 ring-slate-50 dark:ring-slate-800/50"
+        : "bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700/50 shadow-sm"
+    } ${readOnly ? "bg-slate-50/50 dark:bg-slate-900/50" : ""}`}
   >
     <div className="flex items-center gap-2 mb-2">
-      <div className="p-1.5 bg-slate-50 rounded-lg text-slate-400">
+      <div className="p-1.5 bg-slate-50 dark:bg-slate-900 rounded-lg text-slate-400 dark:text-slate-500">
         <Icon size={14} />
       </div>
       <p className="text-[9px] uppercase font-black text-slate-400 tracking-widest">
@@ -71,11 +71,11 @@ const InfoField = ({
         value={value || ""}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full bg-slate-50 border-none rounded-lg py-2 px-3 focus:ring-0 text-sm font-bold text-slate-900"
+        className="w-full bg-slate-50 dark:bg-slate-900 border-none rounded-lg py-2 px-3 focus:ring-0 text-sm font-bold text-slate-900 dark:text-white"
       />
     ) : (
       <p
-        className={`text-sm font-bold ml-1 truncate ${value ? "text-slate-900" : "text-slate-300"}`}
+        className={`text-sm font-bold ml-1 truncate ${value ? "text-slate-900 dark:text-white" : "text-slate-300 dark:text-slate-600"}`}
       >
         {value || "No asignado"}
       </p>
@@ -276,16 +276,16 @@ const Profile = () => {
       </div>
 
       {/* ROL / PERMISOS ACCESO */}
-      <div className="bg-white rounded-xl border border-slate-100 p-6 shadow-sm">
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700/50 p-6 shadow-sm">
         <div className="flex items-center gap-4 mb-6">
-          <div className="w-10 h-10 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center">
             <ShieldCheck size={20} />
           </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               Nivel de Seguridad
             </p>
-            <h3 className="font-black text-slate-900 uppercase tracking-tighter">
+            <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tighter">
               {profile.role?.replace("_", " ")}
             </h3>
           </div>
@@ -295,11 +295,11 @@ const Profile = () => {
           {getEffectivePermissions().map((perm) => (
             <div
               key={perm}
-              className="flex items-center gap-2 px-4 py-3 bg-slate-50 rounded-lg border border-slate-100 group-hover:bg-slate-100/50 transition-colors"
+              className="flex items-center gap-2 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700/50 group-hover:bg-slate-100/50 dark:group-hover:bg-slate-800/50 transition-colors"
             >
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
               <div className="flex flex-col">
-                <span className="text-[12px] font-black text-slate-900 uppercase tracking-widest">
+                <span className="text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-widest">
                   {perm}
                 </span>
                 <span className="text-[10px] text-slate-400 font-medium">

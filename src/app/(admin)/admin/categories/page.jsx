@@ -293,51 +293,51 @@ export default function CategoriesPage() {
 
       {/* Modal para Elegir Nicho */}
       {isStoreTypeModalOpen && (
-        <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xl transition-all">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-[3rem] shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-md transition-all">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl sm:rounded-[3rem] shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-300">
             {/* Header de la Modal */}
-            <div className="p-8 pb-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row gap-6 justify-between items-start sm:items-center">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
-                  <Store size={24} />
+            <div className="p-5 sm:p-8 pb-4 sm:pb-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row gap-4 sm:gap-6 justify-between items-start sm:items-center">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
+                  <Store size={20} />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+                  <h3 className="text-lg sm:text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
                     Elegir Tipo de Tienda
                   </h3>
-                  <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold mt-1 uppercase tracking-[0.2em]">
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 dark:text-slate-500 font-bold mt-1 uppercase tracking-[0.2em]">
                     Selecciona tu nicho para ver el catálogo
                   </p>
                 </div>
               </div>
 
               {/* Botón Cerrar y Vistas */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between w-full sm:w-auto gap-2">
                 <div className="flex bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
                   <button
                     onClick={() => setStoreTypeViewMode("grid")}
-                    className={`p-2 rounded-lg transition-all ${
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                       storeTypeViewMode === "grid"
                         ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white"
                         : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                     }`}
                   >
-                    <LayoutGrid size={16} />
+                    <LayoutGrid size={14} />
                   </button>
                   <button
                     onClick={() => setStoreTypeViewMode("list")}
-                    className={`p-2 rounded-lg transition-all ${
+                    className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                       storeTypeViewMode === "list"
                         ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white"
                         : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                     }`}
                   >
-                    <List size={16} />
+                    <List size={14} />
                   </button>
                 </div>
                 <button
                   onClick={() => setIsStoreTypeModalOpen(false)}
-                  className="rounded-xl p-3 ml-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="rounded-xl p-2 sm:p-3 sm:ml-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -373,8 +373,8 @@ export default function CategoriesPage() {
                 <div
                   className={
                     storeTypeViewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                      : "flex flex-col gap-4"
+                      ? "grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6"
+                      : "flex flex-col gap-3 sm:gap-4"
                   }
                 >
                   {filteredStoreTypes.map((type) => (
@@ -383,14 +383,14 @@ export default function CategoriesPage() {
                       onClick={() => handleTypeSelection(type.id)}
                       className={
                         storeTypeViewMode === "grid"
-                          ? `relative p-8 rounded-3xl border-2 transition-all flex flex-col items-center gap-4 cursor-pointer group ${
+                          ? `relative p-4 sm:p-8 rounded-2xl sm:rounded-3xl border-2 transition-all flex flex-col items-center gap-2 sm:gap-4 cursor-pointer group ${
                               selectedType === type.id
-                                ? "border-slate-900 bg-slate-100 dark:bg-slate-500/10 text-slate-900 dark:text-slate-400 shadow-xl shadow-slate-500/10"
+                                ? "border-slate-900 bg-slate-50 dark:bg-slate-500/10 text-slate-900 dark:text-slate-400 shadow-xl shadow-slate-500/10"
                                 : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700/50 hover:shadow-lg"
                             }`
-                          : `relative p-4 px-6 rounded-2xl border-2 transition-all flex flex-row items-center gap-4 cursor-pointer group ${
+                          : `relative p-3 sm:p-4 sm:px-6 rounded-xl sm:rounded-2xl border-2 transition-all flex flex-row items-center gap-3 sm:gap-4 cursor-pointer group ${
                               selectedType === type.id
-                                ? "border-slate-900 bg-slate-100 dark:bg-slate-500/10 text-slate-900 dark:text-slate-400 shadow-xl shadow-slate-500/10"
+                                ? "border-slate-900 bg-slate-50 dark:bg-slate-500/10 text-slate-900 dark:text-slate-400 shadow-xl shadow-slate-500/10"
                                 : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:border-slate-300 dark:hover:border-slate-700/50 hover:shadow-lg"
                             }`
                       }
@@ -399,26 +399,26 @@ export default function CategoriesPage() {
                         <CheckCircle2
                           className={
                             storeTypeViewMode === "grid"
-                              ? "absolute top-4 right-4 text-slate-900 dark:text-slate-400"
-                              : "absolute right-6 text-slate-900 dark:text-slate-400"
+                              ? "absolute top-2 right-2 sm:top-4 sm:right-4 text-slate-900 dark:text-slate-400"
+                              : "absolute right-4 sm:right-6 text-slate-900 dark:text-slate-400"
                           }
-                          size={18}
+                          size={14}
                         />
                       )}
                       <div
-                        className={`p-4 rounded-[1.25rem] ${
+                        className={`p-3 sm:p-4 rounded-lg sm:rounded-[1.25rem] ${
                           selectedType === type.id
-                            ? "bg-slate-100 dark:bg-slate-500/20 text-slate-900 dark:text-slate-400"
+                            ? "bg-slate-200 dark:bg-slate-500/20 text-slate-900 dark:text-slate-400"
                             : "bg-slate-50 dark:bg-slate-900 text-slate-500 group-hover:bg-slate-100 dark:group-hover:bg-slate-700"
                         }`}
                       >
-                        {type.icon}
+                        {React.cloneElement(type.icon, { size: storeTypeViewMode === "grid" ? 18 : 16 })}
                       </div>
                       <span
                         className={
                           storeTypeViewMode === "grid"
-                            ? "font-black text-xs uppercase tracking-widest text-center"
-                            : "font-black text-sm uppercase tracking-widest"
+                            ? "font-black text-[9px] sm:text-xs uppercase tracking-widest text-center"
+                            : "font-black text-[11px] sm:text-sm uppercase tracking-widest"
                         }
                       >
                         {type.name}

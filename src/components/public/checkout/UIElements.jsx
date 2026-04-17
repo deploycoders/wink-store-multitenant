@@ -5,14 +5,11 @@ import {
 } from "@/lib/siteConfig";
 
 export const HeaderTitle = ({ className }) => (
-  <div className={`space-y-2 ${className}`}>
-    <h1 className="text-4xl font-serif font-black text-ink uppercase tracking-tight">
+  <div className={`space-y-1 ${className}`}>
+    <h1 className="text-3xl font-black text-ink uppercase tracking-tight">
       Finalizar Compra
     </h1>
-    <p className="text-honey-dark text-sm">
-      Completa tu pago con el metodo activo de la tienda para procesar el
-      pedido.
-    </p>
+    <div className="h-1 w-12 bg-ink rounded-full" />
   </div>
 );
 

@@ -33,14 +33,18 @@ const getMissingColumnName = (error) => {
   return null;
 };
 
-const findExistingCustomer = async (supabase, idNumber, tenantId) =>
-  supabase
+const findExistingCustomer = async (supabase, idNumber, tenantId) => {
+  // Extraemos solo los dígitos para búsqueda legacy
+  const rawIdNumber = String(idNumber || "").replace(/\D/g, "");
+
+  return supabase
     .from(CUSTOMER_TABLE)
     .select("id")
-    .eq("id_number", idNumber)
+    .or(`id_number.eq.${idNumber},id_number.eq.${rawIdNumber}`)
     .eq("tenant_id", tenantId)
     .limit(1)
     .single();
+};
 
 const insertCustomer = async (supabase, payload) =>
   supabase.from(CUSTOMER_TABLE).insert([payload]).select("id").single();
@@ -52,7 +56,7 @@ const createOrderWithFallback = async (supabase, payload) => {
     const { data, error } = await supabase
       .from("orders")
       .insert([orderPayload])
-      .select("id")
+      .select("id, order_number")
       .single();
 
     if (!error) {
@@ -332,6 +336,17 @@ export async function processCheckoutOrder(formData, items, total) {
       customer_name: formData.name,
       customer_id_number: formData.idNumber,
       customer_phone: normalizedCustomerPhone,
+      customer_email: formData.email, // Nuevo
+      metodo_pago: formData.paymentMethod, // Nuevo
+      referencia_pago: formData.reference, // Nuevo
+      items: items.map((i) => ({
+        id: i.id,
+        name: i.name || i.title,
+        quantity: i.quantity,
+        price: i.price,
+        variant: i.variant || null,
+      })), // Nuevo (JSONB)
+      notas: formData.notes, // Nuevo
       ...(clienteId ? { customer_id: clienteId } : {}),
     };
 
@@ -371,7 +386,13 @@ export async function processCheckoutOrder(formData, items, total) {
         ? String(newOrder.id)
         : null;
 
-    return { success: true, orderId: normalizedOrderId };
+    const orderNumber = newOrder?.order_number || null;
+
+    return {
+      success: true,
+      orderId: normalizedOrderId,
+      orderNumber: orderNumber,
+    };
   } catch (error) {
     console.error("Error en processCheckoutOrder:", error);
     return { success: false, error: error.message };

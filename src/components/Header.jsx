@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ShoppingBag, Menu, X } from "lucide-react";
-import { useCartStore } from "@/lib/useCartStore";
+import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import { useFilterStore } from "@/lib/useFilterStore";
 import MiniCart from "./public/cart/MiniCart";
 import { motion, AnimatePresence } from "framer-motion";
@@ -32,8 +32,8 @@ export default function Header() {
     setIsMenuOpen(false);
   };
 
-  const items = useCartStore((state) => state.items);
-  const totalItems = useCartStore((state) => state.getTotalItems());
+  const { items, getTotalItems } = useTenantCart(tenant_slug);
+  const totalItems = getTotalItems();
   const dynamicMenu = normalizeHeaderMenu(header_menu || DEFAULT_HEADER_MENU);
 
   useEffect(() => {

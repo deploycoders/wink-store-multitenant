@@ -10,7 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { useCartStore } from "@/lib/useCartStore";
+import { useCartStore, useTenantCart } from "@/lib/useCartStore";
 import Swal from "sweetalert2";
 import ReactMarkdown from "react-markdown";
 import { useSiteConfig } from "@/context/SiteConfigContext";
@@ -43,7 +43,7 @@ export default function ProductView({ product }) {
   } = product;
 
   const [selectedImage, setSelectedImage] = useState(0);
-  const addItem = useCartStore((state) => state.addItem);
+  const { addItem } = useTenantCart(tenant_slug);
   const router = useRouter();
 
   // ----------------------------------------------------------------
