@@ -96,9 +96,9 @@ export default function AdminDashboard() {
 
       // 3. Stock Bajo (menor o igual a 5)
       let lowStockQuery = supabase
-        .from("products")
+        .from("product_stock")
         .select("*", { count: "exact", head: true })
-        .lte("stock", 5);
+        .lte("quantity", 5);
       if (tenantId) lowStockQuery = lowStockQuery.eq("tenant_id", tenantId);
       const { count: stockBajo } = await lowStockQuery;
 

@@ -53,10 +53,9 @@ export async function POST(req) {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  const user = session?.user;
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (!hasPlatformScopeInMetadata(user) && !isPlatformAdminEmail(user.email)) {

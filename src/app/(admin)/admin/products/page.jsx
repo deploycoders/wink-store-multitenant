@@ -40,15 +40,13 @@ export default function ProductsPage() {
     try {
       setLoading(true);
 
-      let query = supabase
-        .from("products")
-        .select(`
+      let query = supabase.from("products").select(`
           *,
           product_variants(*),
           product_stock(quantity),
-          product_categories!product_categories_product_id_fkey(
+          product_categories(
             category_id,
-            categories!product_categories_category_id_fkey(name)
+            categories(name)
           )
         `);
 
@@ -63,7 +61,9 @@ export default function ProductsPage() {
         const stockObj = Array.isArray(product.product_stock)
           ? product.product_stock[0]
           : product.product_stock;
-        const categoryIds = (product.product_categories || []).map((pc) => pc.category_id);
+        const categoryIds = (product.product_categories || []).map(
+          (pc) => pc.category_id,
+        );
         const categoryNames = (product.product_categories || [])
           .map((pc) => pc.categories?.name)
           .filter(Boolean);
@@ -72,7 +72,8 @@ export default function ProductsPage() {
           stock: stockObj?.quantity ?? 0,
           variants: (product.product_variants || []).map((v) => ({
             ...v,
-            price_adjustment: Number(v.price_adjustment ?? v.price_override ?? 0) || 0,
+            price_adjustment:
+              Number(v.price_adjustment ?? v.price_override ?? 0) || 0,
             stock_quantity: Number(v.stock_quantity ?? 0) || 0,
           })),
           category_ids: categoryIds,
@@ -291,10 +292,10 @@ export default function ProductsPage() {
         </div>
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none cursor-pointer"
+          className="flex items-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-md hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none cursor-pointer"
         >
           <Plus size={16} />
-          NUEVO PRODUCTO
+          Nuevo Producto
         </button>
       </header>
 
@@ -363,7 +364,7 @@ export default function ProductsPage() {
             </span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-2.5">
             <button
               type="button"
               onClick={() =>

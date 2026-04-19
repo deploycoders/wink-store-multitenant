@@ -131,7 +131,7 @@ export default function TenantsPage() {
       const [tenantId, invitation] = pending.entries().next().value;
       const tenant = (data || []).find((t) => t.tenant_id === tenantId);
       setLastInvitation(invitation);
-      setLastTenantName(tenant?.nombre || "");
+      setLastTenantName(tenant?.name || "");
       setLastTenantWhatsapp(tenant?.whatsapp_number || "");
     }
 
@@ -146,7 +146,7 @@ export default function TenantsPage() {
   const handleTenantCreated = (newTenant, invitation) => {
     setTenants((prev) => [newTenant, ...prev]);
     setLastInvitation(invitation);
-    setLastTenantName(newTenant.nombre || newTenant.name);
+    setLastTenantName(newTenant.name || newTenant.name);
     setLastTenantWhatsapp(newTenant.whatsapp_number || "");
     setPendingInvitations((prev) => {
       const next = new Map(prev);
@@ -164,9 +164,7 @@ export default function TenantsPage() {
   };
 
   const filteredTenants = tenants.filter((t) => {
-    const nameMatch = t.nombre
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase());
+    const nameMatch = t.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Usamos "slug" con protección por si acaso
     const slugMatch = t.slug?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -192,7 +190,7 @@ export default function TenantsPage() {
     const existing = pendingInvitations.get(tenant.tenant_id);
     if (existing) {
       setLastInvitation(existing);
-      setLastTenantName(tenant.nombre || "");
+      setLastTenantName(tenant.name || "");
       setLastTenantWhatsapp(tenant.whatsapp_number || "");
       return;
     }
@@ -205,7 +203,7 @@ export default function TenantsPage() {
         return next;
       });
       setLastInvitation(created);
-      setLastTenantName(tenant.nombre || "");
+      setLastTenantName(tenant.name || "");
       setLastTenantWhatsapp(tenant.whatsapp_number || "");
 
       Swal.fire({
@@ -607,7 +605,7 @@ export default function TenantsPage() {
                 const hasPending = pendingInvitations?.get?.(t.tenant_id);
                 return (
                   <option key={t.tenant_id} value={t.tenant_id}>
-                    {t.nombre} ({t.slug})
+                    {t.name} ({t.slug})
                     {hasPending ? " - INVITACION PENDIENTE" : ""}
                   </option>
                 );

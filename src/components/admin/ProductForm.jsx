@@ -62,6 +62,7 @@ const ProductForm = ({
 
   useEffect(() => {
     if (show) {
+      document.body.style.overflow = "hidden";
       setNewImageFiles([]);
       fetchCategories();
 
@@ -85,6 +86,8 @@ const ProductForm = ({
       } else {
         resetForm();
       }
+    } else {
+      document.body.style.overflow = "auto";
     }
   }, [show, editingProduct]);
 
@@ -110,9 +113,10 @@ const ProductForm = ({
     });
   };
 
-  // Cleanup blobs on unmount
+  // Cleanup blobs and body overflow on unmount
   useEffect(() => {
     return () => {
+      document.body.style.overflow = "auto";
       newImageFiles.forEach((f) => URL.revokeObjectURL(f.blobUrl));
     };
   }, [newImageFiles]);
@@ -355,16 +359,13 @@ const ProductForm = ({
   const effectiveStock = calculateTotalStock(variantsPreview, formData.stock);
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl z-100 flex items-center justify-center p-4 overflow-hidden">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-6xl rounded-[3rem] shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-300">
+    <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xl z-100 flex items-center justify-center p-2 sm:p-4 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-6xl rounded-md shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[85vh] sm:max-h-[92vh] overflow-hidden animate-in zoom-in-95 duration-300">
         {/* Header Elegante */}
-        <div className="p-8 pb-6 flex justify-between items-center border-b border-slate-50 dark:border-slate-800">
+        <div className="p-5 sm:p-8 pb-4 sm:pb-6 flex justify-between items-center border-b border-slate-50 dark:border-slate-800">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-none">
-              <span className="font-black text-xl">W</span>
-            </div>
             <div>
-              <h3 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+              <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
                 {readOnly
                   ? "Detalles del Producto"
                   : editingProduct
@@ -392,10 +393,10 @@ const ProductForm = ({
           className="flex-1 flex flex-col min-h-0 overflow-hidden"
         >
           {/* Reemplazo de ScrollArea por div estándar con overflow-y-auto */}
-          <div className="flex-1 overflow-y-auto p-8 min-h-0 custom-scrollbar">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="flex-1 overflow-y-auto p-5 sm:p-8 min-h-0 custom-scrollbar">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8">
               {/* Columna Principal (Información y Precios) */}
-              <div className="lg:col-span-8 space-y-10">
+              <div className="lg:col-span-8 space-y-8 sm:space-y-10">
                 <MainInfo
                   formData={formData}
                   setFormData={setFormData}
@@ -438,12 +439,12 @@ const ProductForm = ({
             </div>
           </div>
           {/* Footer de Acciones */}
-          <div className="p-8 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-4">
+          <div className="p-4 sm:p-8 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex justify-end items-center gap-3 sm:gap-4 flex-col sm:flex-row">
             <Button
               type="button"
               variant="ghost"
               onClick={onClose}
-              className="rounded-2xl px-8 h-12 cursor-pointer text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:bg-white dark:hover:bg-slate-700 transition-all"
+              className="rounded-md px-6 sm:px-8 h-12 w-full sm:w-auto cursor-pointer text-slate-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-widest hover:bg-white dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-700 sm:border-none"
             >
               {/* Cambio dinámico del texto según readOnly */}
               {readOnly ? "Cerrar" : "Cancelar y Salir"}
@@ -452,7 +453,7 @@ const ProductForm = ({
             {!readOnly && (
               <Button
                 disabled={loading || uploading}
-                className="bg-slate-900 cursor-pointer dark:bg-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200 text-white rounded-2xl px-10 h-14 font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none transition-all disabled:opacity-50 gap-3"
+                className="bg-slate-900 w-full h-12 sm:w-auto cursor-pointer dark:bg-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-slate-200 text-white rounded-md px-8 sm:px-10 font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none transition-all disabled:opacity-50 gap-3"
               >
                 {loading ? (
                   <>

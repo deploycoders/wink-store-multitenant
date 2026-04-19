@@ -23,7 +23,7 @@ export async function POST(request) {
         `
     *,
     tenants (
-      nombre
+      name
     )
   `,
       )

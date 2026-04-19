@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SiteConfigProvider } from "@/context/SiteConfigContext";
+import { getSiteConfigServerCached } from "@/lib/siteConfig.server";
 
 /**
  * Server Component para layout multitenant.
@@ -9,18 +10,17 @@ import { SiteConfigProvider } from "@/context/SiteConfigContext";
 export default async function TenantBrandingLayout({ tenant, children }) {
   const supabase = await createClient();
 
-  // Cambiamos 'id' por 'tenant_id', 'name' por 'nombre' y verificamos el status
+  // 1. Obtener datos básicos del tenant
   const { data: tenantRow, error: tenantError } = await supabase
     .from("tenants")
     .select(
-      "tenant_id, slug, nombre, logo_url, primary_color, secondary_color, status",
+      "tenant_id, slug, name, logo_url, primary_color, secondary_color, status",
     )
     .eq("slug", tenant)
-    .eq("status", "Active") // En tu DB usas 'Active' en lugar de booleano is_active
+    .eq("status", "Active")
     .maybeSingle();
 
   if (tenantError) {
-    // Imprimimos el .message para que no salga el objeto vacío {}
     console.error("Tenant lookup error:", tenantError.message);
   }
 
@@ -28,8 +28,17 @@ export default async function TenantBrandingLayout({ tenant, children }) {
     notFound();
   }
 
+  // 2. Obtener configuración del sitio en el servidor para hidratar el cliente
+  const siteConfig = await getSiteConfigServerCached({
+    tenantId: tenantRow.tenant_id,
+  });
+
   return (
-    <SiteConfigProvider tenantId={tenantRow.tenant_id} tenantSlug={tenant}>
+    <SiteConfigProvider
+      tenantId={tenantRow.tenant_id}
+      tenantSlug={tenant}
+      initialData={siteConfig}
+    >
       <div
         style={{
           "--tenant-primary": tenantRow.primary_color || "#111111",

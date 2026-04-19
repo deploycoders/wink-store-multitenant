@@ -14,7 +14,7 @@ async function getTenantCards() {
   // Asegúrate de que tu tabla 'tenants' tenga la columna 'category'
   const { data: tenantsData, error: tenantsError } = await supabase
     .from("tenants")
-    .select("tenant_id, nombre, slug, status, store_type")
+    .select("tenant_id, name, slug, status, store_type")
     .eq("status", "Active")
     .order("created_at", { ascending: true });
 

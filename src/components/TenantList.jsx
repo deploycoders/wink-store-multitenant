@@ -26,7 +26,7 @@ export default function TenantList({ initialTenants }) {
 
   // Lógica de filtrado dinámico
   const filteredTenants = initialTenants.filter((tenant) => {
-    const nombre = (tenant?.nombre || "").toLowerCase();
+    const nombre = (tenant?.name || "").toLowerCase();
     const slug = (tenant?.slug || "").toLowerCase();
     const searchLower = search.toLowerCase();
     const matchesSearch =
@@ -132,7 +132,7 @@ export default function TenantList({ initialTenants }) {
                   </p>
 
                   <h2 className="font-serif text-lg md:text-2xl uppercase leading-tight tracking-tight text-zinc-800 mb-1 line-clamp-1">
-                    {tenant.nombre}
+                    {tenant.name}
                   </h2>
 
                   <p className="text-[10px] md:text-sm font-mono text-zinc-400 mb-2">

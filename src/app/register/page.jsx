@@ -6,6 +6,8 @@ import { getInvitation } from "@/services/tenants";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Preloader from "@/components/ui/Preloader";
+import { validateRegistration, validateField } from "@/lib/validations/auth";
 import {
   Loader2,
   AlertCircle,
@@ -17,6 +19,22 @@ import {
   Store,
 } from "lucide-react";
 import Swal from "sweetalert2";
+
+// Helper para Toasts consistentes (validación visual arriba a la derecha)
+const showToast = (icon, title) => {
+  const Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 3000,
+    timerProgressBar: true,
+    didOpen: (toast) => {
+      toast.onmouseenter = Swal.stopTimer;
+      toast.onmouseleave = Swal.resumeTimer;
+    },
+  });
+  Toast.fire({ icon, title });
+};
 
 function RegisterContent() {
   const searchParams = useSearchParams();
@@ -34,6 +52,9 @@ function RegisterContent() {
     password: "",
     confirm_password: "",
   });
+
+  const [formErrors, setFormErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   useEffect(() => {
     if (!token) {
@@ -60,15 +81,39 @@ function RegisterContent() {
     validateToken();
   }, [token]);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Validar en tiempo real si el campo ya fue tocado
+    if (touched[name]) {
+      const error = validateField(name, value, { ...formData, [name]: value });
+      setFormErrors((prev) => ({ ...prev, [name]: error }));
+    }
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+    setTouched((prev) => ({ ...prev, [name]: true }));
+    const error = validateField(name, value, formData);
+    setFormErrors((prev) => ({ ...prev, [name]: error }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (formData.password !== formData.confirm_password) {
-      Swal.fire({
-        title: "Error",
-        text: "Las contraseñas no coinciden",
-        icon: "error",
-        confirmButtonColor: "#0f172a", // Slate 900
-      });
+
+    // Marcar todo como tocado para mostrar errores
+    const allTouched = Object.keys(formData).reduce(
+      (acc, key) => ({ ...acc, [key]: true }),
+      {},
+    );
+    setTouched(allTouched);
+
+    const errors = validateRegistration(formData);
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      showToast("warning", "Por favor corrige los errores del formulario");
       return;
     }
 
@@ -84,7 +129,7 @@ function RegisterContent() {
       if (!response.ok) throw new Error(result.error || "Error al registrar");
 
       const tenantName =
-        result?.tenant?.nombre || invitation?.tenants?.name || "tu tienda";
+        result?.tenant?.name || invitation?.tenants?.name || "tu tienda";
 
       Swal.fire({
         title: "¡Bienvenido!",
@@ -104,16 +149,7 @@ function RegisterContent() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center space-y-4">
-        <Loader2 className="h-10 w-10 animate-spin text-slate-900" />
-        <p className="text-slate-500 font-medium text-sm tracking-tight">
-          Preparando tu acceso...
-        </p>
-      </div>
-    );
-  }
+  if (loading) return <Preloader showBranding />;
 
   if (error) {
     return (
@@ -184,26 +220,42 @@ function RegisterContent() {
                 icon: ShieldCheck,
                 placeholder: "••••••••",
               },
-            ].map((field) => (
-              <div key={field.id} className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                  {field.label}
-                </label>
-                <div className="relative group">
-                  <field.icon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300 group-focus-within:text-slate-900 transition-colors" />
-                  <Input
-                    type={field.type}
-                    className="pl-12 h-12 bg-white border-slate-200 rounded-lg focus:border-slate-900 focus:ring-0 transition-all placeholder:text-slate-300 text-sm font-medium"
-                    placeholder={field.placeholder}
-                    value={formData[field.id]}
-                    onChange={(e) =>
-                      setFormData({ ...formData, [field.id]: e.target.value })
-                    }
-                    required
-                  />
+            ].map((field) => {
+              const hasError = touched[field.id] && formErrors[field.id];
+              return (
+                <div key={field.id} className="space-y-1.5">
+                  <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    {field.label}
+                  </label>
+                  <div className="relative group">
+                    <field.icon
+                      size={16}
+                      className={`absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors ${
+                        hasError
+                          ? "text-red-500"
+                          : "text-slate-300 group-focus-within:text-slate-900"
+                      }`}
+                    />
+                    <Input
+                      name={field.id}
+                      type={field.type}
+                      className={`pl-12 h-12 bg-white border-slate-200 rounded-lg focus:border-slate-900 focus:ring-0 transition-all placeholder:text-slate-300 text-sm font-medium ${
+                        hasError ? "border-red-500" : ""
+                      }`}
+                      placeholder={field.placeholder}
+                      value={formData[field.id]}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                    />
+                  </div>
+                  {hasError && (
+                    <p className="text-[10px] text-red-500 font-bold ml-1 animate-in fade-in slide-in-from-top-1">
+                      {formErrors[field.id]}
+                    </p>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <Button
@@ -234,7 +286,7 @@ function RegisterContent() {
 export default function RegisterPage() {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-6">
-      <Suspense fallback={<Loader2 className="animate-spin text-slate-900" />}>
+      <Suspense fallback={<Preloader showBranding />}>
         <RegisterContent />
       </Suspense>
     </div>

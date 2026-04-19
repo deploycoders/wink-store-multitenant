@@ -422,7 +422,10 @@ export default function CustomersPage() {
                             new Date(b.created_at) - new Date(a.created_at),
                         )
                         .map((order) => (
-                          <tr key={order.id} className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30 transition-colors">
+                          <tr
+                            key={order.id}
+                            className="hover:bg-slate-100/30 dark:hover:bg-slate-800/30 transition-colors"
+                          >
                             <td className="px-4 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">
                               #{toOrderCode(order)}
                             </td>

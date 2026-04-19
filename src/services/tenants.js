@@ -117,7 +117,7 @@ export async function createTenant(tenantData) {
 
   // 1. Mapeamos los datos para que coincidan con las columnas de tu SQL
   const payload = {
-    nombre: tenantData.name,
+    name: tenantData.name,
     slug: tenantData.slug,
     plan_type: tenantData.plan || "Bronze",
     whatsapp_number: tenantData.whatsapp_number || null,

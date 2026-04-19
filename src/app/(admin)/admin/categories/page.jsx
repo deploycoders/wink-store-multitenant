@@ -172,6 +172,21 @@ export default function CategoriesPage() {
     setPage(1);
   }, [searchTerm, selectedType, pageSize, sortMode, categories.length]);
 
+  useEffect(() => {
+    if (isCreateCategoryModalOpen || isStoreTypeModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "auto";
+    }
+  }, [isCreateCategoryModalOpen, isStoreTypeModalOpen]);
+
+  // Cleanup body overflow on unmount
+  useEffect(() => {
+    return () => {
+      document.body.style.overflow = "auto";
+    };
+  }, []);
+
   const sortDir = sortMode === "Z-A" ? -1 : 1;
   const sortTreeByName = (nodes = []) => {
     const sorted = [...(nodes || [])].sort(
@@ -244,7 +259,7 @@ export default function CategoriesPage() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
             Categorías
@@ -253,30 +268,32 @@ export default function CategoriesPage() {
             Revisa las categorías predeterminadas o cambia el nicho principal.
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-          <button
-            onClick={openCreateCategoryModal}
-            disabled={!selectedType || !tenantId || loading}
-            className="flex items-center cursor-pointer justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-black text-xs uppercase tracking-widest shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            title={
-              !selectedType
-                ? "Selecciona un nicho para poder crear categorías"
-                : !tenantId
-                  ? "No se pudo resolver el tenant"
-                  : "Crear categoría customizada"
-            }
-          >
-            <Plus size={16} />
-            Agregar Categoría
-          </button>
+        <div className="w-fit sm:w-full md:w-fit">
+          <div className="flex flex-col sm:flex-row md:flex-col items-start gap-3 w-full">
+            <button
+              onClick={openCreateCategoryModal}
+              disabled={!selectedType || !tenantId || loading}
+              className="flex items-center cursor-pointer justify-center gap-2 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 px-5 py-3 rounded-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-all font-black text-xs uppercase tracking-widest shadow-sm disabled:opacity-40 disabled:cursor-not-allowed w-full"
+              title={
+                !selectedType
+                  ? "Selecciona un nicho para poder crear categorías"
+                  : !tenantId
+                    ? "No se pudo resolver el tenant"
+                    : "Crear categoría customizada"
+              }
+            >
+              <Plus size={16} />
+              Agregar Categoría
+            </button>
 
-          <button
-            onClick={() => setIsStoreTypeModalOpen(true)}
-            className="flex cursor-pointer items-center justify-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-xl hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none"
-          >
-            <Store size={16} />
-            {selectedType ? "CAMBIAR NICHO" : "ELEGIR NICHO"}
-          </button>
+            <button
+              onClick={() => setIsStoreTypeModalOpen(true)}
+              className="flex cursor-pointer items-center justify-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-md hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none w-full"
+            >
+              <Store size={16} />
+              {selectedType ? "Cambiar Nicho" : "Elegir Nicho"}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -397,7 +414,7 @@ export default function CategoriesPage() {
                           <Tags size={10} /> Custom
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-500/20">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:emerald-400 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100 dark:border-emerald-500/20">
                           <Tags size={10} /> Oficial
                         </span>
                       )}
@@ -495,10 +512,10 @@ export default function CategoriesPage() {
       {/* Modal Crear Categoría Custom */}
       {isCreateCategoryModalOpen && (
         <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-md transition-all">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl sm:rounded-[3rem] shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-md sm:rounded-xl shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[85vh] sm:max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-300">
             <div className="p-5 sm:p-8 pb-4 sm:pb-6 border-b border-slate-50 dark:border-slate-800 flex items-start justify-between gap-4">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-lg sm:rounded-xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
                   <Tags size={20} />
                 </div>
                 <div>
@@ -577,11 +594,11 @@ export default function CategoriesPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsCreateCategoryModalOpen(false)}
-                  className="h-11 px-5 rounded-2xl cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition-all duration-150 text-xs font-black uppercase tracking-widest"
+                  className="h-11 px-6 rounded-md cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-100 transition-all duration-150 text-xs font-black uppercase tracking-widest w-full sm:w-auto"
                   disabled={creatingCategory}
                 >
                   Cancelar
@@ -595,7 +612,7 @@ export default function CategoriesPage() {
                     !newCategoryName.trim() ||
                     !newCategorySlug.trim()
                   }
-                  className="h-11 px-6 rounded-2xl cursor-pointer bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs hover:bg-slate-800 hover:text-slate-100 transition-all duration-150 font-black uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="h-11 px-6 rounded-md cursor-pointer bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs hover:bg-slate-800 hover:text-slate-100 transition-all duration-150 font-black uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   {creatingCategory ? (
                     <Loader2 className="animate-spin" size={16} />
@@ -613,11 +630,11 @@ export default function CategoriesPage() {
       {/* Modal para Elegir Nicho */}
       {isStoreTypeModalOpen && (
         <div className="fixed inset-0 z-150 flex items-center justify-center bg-slate-900/60 p-2 sm:p-4 backdrop-blur-md transition-all">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-3xl sm:rounded-[3rem] shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-300">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-4xl rounded-md sm:rounded-xl shadow-2xl relative border border-white/20 dark:border-slate-700/50 flex flex-col max-h-[85vh] sm:max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-300">
             {/* Header de la Modal */}
             <div className="p-5 sm:p-8 pb-4 sm:pb-6 border-b border-slate-50 dark:border-slate-800 flex flex-col sm:flex-row gap-4 sm:gap-6 justify-between items-start sm:items-center">
               <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-xl sm:rounded-2xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-900 rounded-lg sm:rounded-xl flex items-center justify-center text-white shadow-xl shadow-slate-500/20">
                   <Store size={20} />
                 </div>
                 <div>
@@ -656,7 +673,7 @@ export default function CategoriesPage() {
                 </div>
                 <button
                   onClick={() => setIsStoreTypeModalOpen(false)}
-                  className="rounded-xl p-2 sm:p-3 sm:ml-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="rounded-lg p-2 sm:p-3 sm:ml-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>

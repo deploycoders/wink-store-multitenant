@@ -15,7 +15,7 @@ export default function AdminNavLink({ href, icon, label, isCollapsed, onClick }
       className={`
         flex items-center rounded-xl transition-all duration-300 group overflow-hidden
         ${isCollapsed ? "lg:justify-center lg:p-4 lg:w-12 lg:h-12 lg:mx-auto p-4 gap-4" : "gap-4 p-4"}
-        ${isActive ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xl shadow-slate-200 dark:shadow-none ring-4 ring-slate-50 dark:ring-slate-800" : "hover:bg-slate-100 dark:hover:bg-slate-800 text-zinc-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}
+        ${isActive ? "bg-white text-slate-900 shadow-xl shadow-white/5 ring-4 ring-slate-900" : "hover:bg-slate-900 text-slate-400 hover:text-white"}
       `}
     >
       <span className="shrink-0">{icon}</span>

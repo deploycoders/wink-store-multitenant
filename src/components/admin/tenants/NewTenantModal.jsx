@@ -36,7 +36,7 @@ export function NewTenantModal({ onTenantCreated }) {
 
       Swal.fire({
         title: "¡Éxito!",
-        text: `La tienda "${tenant.nombre || tenant.name || formData.name}" ha sido creada.`,
+        text: `La tienda "${tenant.name || formData.name}" ha sido creada.`,
         icon: "success",
         confirmButtonColor: "#0F172A",
       });

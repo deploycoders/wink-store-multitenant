@@ -153,7 +153,7 @@ export function TenantTable({
             >
               <TableCell className="font-medium">
                 <div className="flex flex-col">
-                  <span className="text-gray-900">{tenant.nombre}</span>
+                  <span className="text-gray-900">{tenant.name}</span>
                   <span className="text-xs text-gray-500 font-mono">
                     {tenant.slug}
                   </span>
