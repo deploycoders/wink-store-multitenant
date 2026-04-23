@@ -9,9 +9,7 @@ export default function SettingsSectionHeader({
   return (
     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10">
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-900 dark:text-white">
-          {icon}
-        </div>
+        <div>{icon}</div>
         <div>
           <h3 className="text-xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
             {title}

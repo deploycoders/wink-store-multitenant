@@ -67,17 +67,17 @@ export default function ProductCard({ product, index = 0 }) {
               {category.name}
             </span>
           )}
-          <div className="flex justify-between items-start">
-            <h4 className="text-[13px] font-bold text-ink uppercase tracking-tight">
+          <div className="flex flex-col sm:flex-row justify-between items-start gap-1 sm:gap-2">
+            <h4 className="text-[12px] sm:text-[13px] font-bold text-ink uppercase tracking-tight line-clamp-2 flex-1">
               {name}
             </h4>
-            <div className="flex flex-col items-end leading-tight">
+            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-0 leading-tight">
               {hasActiveOffer && (
                 <span className="text-[10px] font-semibold text-red-500 line-through">
                   ${regularPrice.toFixed(2)}
                 </span>
               )}
-              <span className="text-[14px] font-bold text-black">
+              <span className="text-[13px] sm:text-[14px] font-bold text-black">
                 ${displayPrice.toFixed(2)}
               </span>
             </div>
@@ -91,7 +91,7 @@ export default function ProductCard({ product, index = 0 }) {
       <Button
         onClick={handleQuickAdd}
         size="icon"
-        className="absolute bottom-21 cursor-pointer right-4 z-20 bg-white text-ink hover:bg-ink hover:text-white shadow-xl transition-all duration-200 active:scale-95"
+        className="absolute bottom-25 sm:bottom-21 cursor-pointer right-4 z-20 bg-white text-ink hover:bg-ink hover:text-white shadow-xl transition-all duration-200 active:scale-95"
         aria-label={`Añadir ${name} al carrito`}
       >
         <Plus size={18} />

@@ -49,13 +49,7 @@ export const DEFAULT_PRODUCTS_INTRO = {
 export const DEFAULT_HEADER_MENU = [
   {
     id: "slot-1",
-    label: "Hombres",
-    target_type: "category",
-    target_id: null,
-  },
-  {
-    id: "slot-2",
-    label: "Mujeres",
+    label: "Productos",
     target_type: "category",
     target_id: null,
   },
@@ -139,18 +133,21 @@ export const DEFAULT_COMMERCE_SETTINGS = {
 };
 
 export const normalizeHeaderMenu = (menu) => {
-  if (!Array.isArray(menu) || menu.length === 0) return DEFAULT_HEADER_MENU;
+  // Si el menú es estrictamente null o undefined (primer inicio), usamos el DEFAULT
+  if (menu === null || menu === undefined) return DEFAULT_HEADER_MENU;
 
-  return DEFAULT_HEADER_MENU.map((fallbackItem, index) => {
-    const item = menu[index] || {};
-    return {
-      id: item.id || fallbackItem.id,
-      label: item.label || fallbackItem.label,
+  // Si el usuario guardó un array (incluso vacío []), respetamos su decisión
+  if (Array.isArray(menu)) {
+    return menu.map((item, index) => ({
+      id: item.id || `slot-${index + 1}`,
+      label: item.label || "Nuevo Enlace",
       target_type:
         item.target_type === "subcategory" ? "subcategory" : "category",
       target_id: item.target_id || null,
-    };
-  });
+    }));
+  }
+
+  return DEFAULT_HEADER_MENU;
 };
 
 export const normalizePromoDivider = (promoDivider) => ({
@@ -262,6 +259,14 @@ const writeClientCachedSiteConfig = (key, data) => {
     data,
     expiresAt: Date.now() + SITE_CONFIG_CACHE_TTL_MS,
   });
+};
+
+export const clearClientCachedSiteConfig = (key = null) => {
+  if (key) {
+    siteConfigClientCache.delete(key);
+  } else {
+    siteConfigClientCache.clear();
+  }
 };
 
 export const normalizeWhatsappNumber = (value) =>
@@ -424,6 +429,10 @@ export const updateSiteConfig = async (payload, { tenantId } = {}) => {
   }
 
   const { loading, refresh, tenant_slug, tenant_id, ...cleanPayload } = payload;
+
+  // Invalidamos la caché local para forzar que el próximo getSiteConfig sea fresco
+  const cacheKey = getClientCacheKey({ tenantId: finalTenantId });
+  clearClientCachedSiteConfig(cacheKey);
 
   // Incluimos tenantId para asegurar consistencia de la fila en un solo campo
   const rowPayload = {

@@ -88,12 +88,6 @@ export default function Header() {
                 {item.label}
               </button>
             ))}
-            <Link
-              href={`${baseUrl}/products`}
-              className="hover:text-ink transition"
-            >
-              Colecciones
-            </Link>
           </nav>
 
           {/* DERECHA: MiniCart */}
@@ -152,12 +146,6 @@ export default function Header() {
                     {item.label}
                   </button>
                 ))}
-                <Link
-                  href={`${baseUrl}/products`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  Colecciones
-                </Link>
               </nav>
             </motion.div>
           )}

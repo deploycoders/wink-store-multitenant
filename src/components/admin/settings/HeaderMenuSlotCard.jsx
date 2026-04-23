@@ -3,12 +3,7 @@
 import { Link as LinkIcon, Tag, Type } from "lucide-react";
 import { inputClassName, labelClassName } from "./siteSettingsStyles";
 
-export default function HeaderMenuSlotCard({
-  slot,
-  index,
-  options,
-  onChange,
-}) {
+export default function HeaderMenuSlotCard({ slot, index, options, onChange }) {
   const selectedValue =
     slot.target_id && slot.target_type
       ? `${slot.target_type}:${slot.target_id}`
@@ -33,7 +28,7 @@ export default function HeaderMenuSlotCard({
   };
 
   return (
-    <div className="rounded-[2rem] border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-4">
+    <div className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-6 space-y-4">
       <div className="inline-flex items-center gap-2 bg-slate-900 text-white px-4 h-8 rounded-full text-[10px] font-black uppercase tracking-widest">
         Slot 0{index + 1}
       </div>

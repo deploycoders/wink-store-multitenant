@@ -389,117 +389,159 @@ export default function SiteSettingsManager() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
-        Configuración Web
-      </h2>
+  const [activeTab, setActiveTab] = useState("general");
 
-      <Accordion type="single" collapsible className="space-y-4">
-        <AccordionItem value="general">
-          <AccordionTrigger>Identidad y navegación</AccordionTrigger>
-          <AccordionContent>
+  const tabs = [
+    { id: "general", label: "Identidad y Navegación" },
+    { id: "home", label: "Contenido y Home" },
+    { id: "footer", label: "Footer y Comercio" },
+  ];
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col gap-6">
+        <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900 dark:text-white">
+          Configuración Web
+        </h2>
+
+        {/* Navegación por Pestañas Horizontal */}
+        <div className="flex items-center gap-1 sm:gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-md w-fit max-w-full overflow-x-auto no-scrollbar">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                px-3 sm:px-6 py-2 sm:py-2.5 rounded-md text-[9px] sm:text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap
+                ${
+                  activeTab === tab.id
+                    ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm ring-1 ring-slate-200 dark:ring-slate-600"
+                    : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
+                }
+              `}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Contenido de las Secciones */}
+      <div className="bg-white dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800 p-4 sm:p-8 shadow-sm">
+        {activeTab === "general" && (
+          <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="space-y-6">
+              <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
+                Identidad Visual
+              </h3>
               <SiteIdentitySettings
                 siteName={siteName}
                 onSiteNameChange={setSiteName}
               />
+            </div>
 
+            <div className="h-px bg-slate-50 dark:bg-slate-800" />
+
+            <div className="space-y-6">
+              <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
+                Menú de Navegación
+              </h3>
               <HeaderMenuSettings
                 headerMenu={headerMenu}
                 onHeaderMenuChange={setHeaderMenu}
               />
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleSaveSection("general")}
-                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 h-12 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
-                >
-                  <Save size={18} />
-                  Guardar sección
-                </button>
-              </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
 
-        <AccordionItem value="home">
-          <AccordionTrigger>
-            Home, Hero y secciones principales
-          </AccordionTrigger>
-          <AccordionContent>
-            <div className="space-y-6">
-              <HeroSliderSettings
-                slides={slides}
-                onAddSlide={handleAddSlide}
-                onRemoveSlide={handleRemoveSlide}
-                onUpdateSlide={handleUpdateSlide}
-                onImageUpload={handleImageUpload}
-              />
-
-              <EditorialContentSettings
-                homeIntro={homeIntro}
-                onHomeIntroChange={setHomeIntro}
-                productsIntro={productsIntro}
-                onProductsIntroChange={setProductsIntro}
-              />
-
-              <PromoDividerSettings
-                value={promoDivider}
-                onChange={setPromoDivider}
-                onImageUpload={handlePromoImageUpload}
-                uploading={uploading}
-              />
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleSaveSection("home")}
-                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 h-12 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
-                >
-                  <Save size={18} />
-                  Guardar sección
-                </button>
-              </div>
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                onClick={() => handleSaveSection("general")}
+                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
+              >
+                <Save size={18} />
+                Guardar Identidad
+              </button>
             </div>
-          </AccordionContent>
-        </AccordionItem>
+          </div>
+        )}
 
-        <AccordionItem value="footer">
-          <AccordionTrigger>Footer y comercio/legal</AccordionTrigger>
-          <AccordionContent>
+        {activeTab === "home" && (
+          <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <HeroSliderSettings
+              slides={slides}
+              onAddSlide={handleAddSlide}
+              onRemoveSlide={handleRemoveSlide}
+              onUpdateSlide={handleUpdateSlide}
+              onImageUpload={handleImageUpload}
+            />
+
+            <div className="h-px bg-slate-50 dark:bg-slate-800" />
+
+            <EditorialContentSettings
+              homeIntro={homeIntro}
+              onHomeIntroChange={setHomeIntro}
+              productsIntro={productsIntro}
+              onProductsIntroChange={setProductsIntro}
+            />
+
+            <div className="h-px bg-slate-50 dark:bg-slate-800" />
+
+            <PromoDividerSettings
+              value={promoDivider}
+              onChange={setPromoDivider}
+              onImageUpload={handlePromoImageUpload}
+              uploading={uploading}
+            />
+
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                onClick={() => handleSaveSection("home")}
+                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
+              >
+                <Save size={18} />
+                Guardar Contenido
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "footer" && (
+          <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="space-y-6">
+              <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
+                Información del Pie de Página
+              </h3>
               <FooterSettings
                 value={footerSettings}
                 onChange={setFooterSettings}
               />
+            </div>
+
+            <div className="h-px bg-slate-50 dark:bg-slate-800" />
+
+            <div className="space-y-6">
+              <h3 className="text-[10px] sm:text-sm font-black uppercase tracking-widest text-slate-400">
+                Configuración Comercial
+              </h3>
               <CommerceSettings
                 value={commerceSettings}
                 onChange={setCommerceSettings}
               />
-
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => handleSaveSection("footer")}
-                  className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-8 h-12 rounded-2xl hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer"
-                >
-                  <Save size={18} />
-                  Guardar sección
-                </button>
-              </div>
             </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
 
-      <SiteSettingsFooter
-        loading={loading}
-        uploading={uploading}
-        status={status}
-        onSave={handleSave}
-      />
+            <div className="flex justify-end pt-4">
+              <button
+                type="button"
+                onClick={() => handleSaveSection("footer")}
+                className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-6 sm:px-8 h-12 rounded-md hover:bg-slate-700 dark:hover:bg-slate-200 transition-all font-black text-xs uppercase tracking-[0.2em] shadow-2xl flex items-center gap-3 disabled:opacity-50 cursor-pointer w-full sm:w-auto justify-center"
+              >
+                <Save size={18} />
+                Guardar Comercio
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

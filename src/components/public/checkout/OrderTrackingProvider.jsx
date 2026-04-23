@@ -65,7 +65,7 @@ export function OrderTrackingProvider({ children }) {
   return (
     <TrackingContext.Provider value={currentTracking}>
       {children}
-      {currentTracking && <TrackingFloatingWidget />}
+      <TrackingFloatingWidget />
     </TrackingContext.Provider>
   );
 }

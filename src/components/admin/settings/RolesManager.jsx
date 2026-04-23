@@ -64,7 +64,8 @@ const RolesManager = () => {
         .from("staff_profiles")
         .select("*")
         .order("full_name");
-      if (scopedTenantId) staffQuery = staffQuery.eq("tenant_id", scopedTenantId);
+      if (scopedTenantId)
+        staffQuery = staffQuery.eq("tenant_id", scopedTenantId);
 
       const { data, error } = await staffQuery;
 
@@ -108,7 +109,9 @@ const RolesManager = () => {
             .select("max_users, user_limit")
             .eq("tenant_id", scopedTenantId)
             .maybeSingle();
-          const limit = Number(tenantRow?.max_users || tenantRow?.user_limit || 1);
+          const limit = Number(
+            tenantRow?.max_users || tenantRow?.user_limit || 1,
+          );
           setTenantLimit(limit);
         } else {
           setTenantLimit(1);
@@ -311,7 +314,7 @@ const RolesManager = () => {
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
+          <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
             Roles y Acceso
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">

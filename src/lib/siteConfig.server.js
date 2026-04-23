@@ -110,7 +110,7 @@ export async function getSiteConfigServerCached({ tenantId, tenantSlug } = {}) {
       ...DEFAULT_PRODUCTS_INTRO,
       ...(data.products_intro || {}),
     },
-    header_menu: normalizeHeaderMenu(data.header_menu || DEFAULT_HEADER_MENU),
+    header_menu: normalizeHeaderMenu(data.header_menu),
     promo_divider: normalizePromoDivider(data.promo_divider),
     footer_settings: normalizeFooterSettings(
       data.footer_settings ||

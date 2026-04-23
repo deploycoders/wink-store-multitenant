@@ -26,9 +26,10 @@ export default function SiteIdentitySettings({ siteName, onSiteNameChange }) {
           className={inputClassName}
           placeholder="Ej: WINKSTORE"
         />
-        <p className="mt-3 text-[10px] text-slate-400 font-bold uppercase italic tracking-tight">
-          Este nombre aparecerá en el Header, Footer y correos del sistema.
-        </p>
+        <div className="w-full rounded-md border border-slate-100 dark:border-slate-800 p-4 bg-slate-50/70 dark:bg-slate-900/30 text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2">
+          Este nombre aparecerá en la tienda principal (Header, Footer y
+          notificaciones incluidas).
+        </div>
       </div>
     </section>
   );

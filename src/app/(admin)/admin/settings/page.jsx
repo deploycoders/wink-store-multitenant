@@ -25,13 +25,13 @@ export default function SettingsPage() {
       </header>
 
       {/* Tabs */}
-      <div className="flex gap-2 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-3xl w-fit">
+      <div className="flex gap-2 p-1.5 bg-slate-100 dark:bg-slate-900 rounded-md w-fit">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`
-              flex items-center gap-3 px-6 py-3 rounded-xl transition-all font-black text-[10px] tracking-widest uppercase cursor-pointer
+              flex items-center gap-3 px-6 py-3 rounded-md transition-all font-black text-[10px] tracking-widest uppercase cursor-pointer
               ${
                 activeTab === tab.id
                   ? "bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xl shadow-slate-200/50 dark:shadow-none -translate-y-0.5"

@@ -59,7 +59,8 @@ export async function getProducts(tenantId = null, supabaseClient = null) {
     product_stock(quantity),
     product_categories(category_id)
 `
-    );
+    )
+    .eq("status", "published");
 
   if (tenantId) {
     query = query.eq("tenant_id", tenantId);
@@ -125,10 +126,10 @@ export async function getProductBySlug(slug, tenantId = null, supabaseClient = n
     query = query.eq("tenant_id", tenantId);
   }
 
-  const { data: product, error } = await query.single();
+  const { data: product, error } = await query.maybeSingle();
 
-  if (error) {
-    console.error("Supabase Error:", error.message);
+  if (error || !product) {
+    if (error) console.error("Supabase Error:", error.message);
     return null;
   }
 

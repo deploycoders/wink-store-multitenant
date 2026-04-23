@@ -26,12 +26,6 @@ export default function TrackingFloatingWidget() {
 
   const tracking = tenant_slug ? trackings[tenant_slug] : null;
 
-  if (!tracking) return null;
-
-  const { status, orderCode } = tracking;
-  const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
-
-  // Mapeo de estados a UI
   const statusConfig = {
     pending: {
       label: "Validando Pago",
@@ -55,7 +49,7 @@ export default function TrackingFloatingWidget() {
       borderColor: "border-rose-100",
     },
     default: {
-      label: status || "Procesando",
+      label: tracking?.status || "Procesando",
       icon: <Package size={18} />,
       color: "text-zinc-500",
       bgColor: "bg-zinc-50",
@@ -63,7 +57,10 @@ export default function TrackingFloatingWidget() {
     },
   };
 
-  const config = statusConfig[status] || statusConfig.default;
+  const config = tracking
+    ? statusConfig[tracking.status] || statusConfig.default
+    : null;
+  const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
 
   const handleClose = (e) => {
     e.preventDefault();
@@ -74,91 +71,107 @@ export default function TrackingFloatingWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-9999 flex flex-col items-end pointer-events-none">
+    <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end pointer-events-none">
       <AnimatePresence>
-        {!isMinimized && (
+        {isExpanded && (
           <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             className={cn(
-              "pointer-events-auto bg-white dark:bg-slate-900 border shadow-2xl rounded-3xl overflow-hidden transition-all duration-300",
+              "pointer-events-auto bg-white dark:bg-slate-900 border shadow-2xl rounded-3xl overflow-hidden transition-all duration-300 mb-4",
               isExpanded ? "w-72" : "w-64",
             )}
             style={{ borderColor: "var(--honey-light)" }}
           >
-            {/* Cabecera del Widget */}
-            <div className="p-4 flex items-center justify-between border-b border-honey-light">
-              <div className="flex items-center gap-2">
-                <div className={cn("p-2 rounded-xl", config.bgColor)}>
-                  {config.icon}
+            {tracking ? (
+              <>
+                {/* Cabecera con Orden Activa */}
+                <div className="p-4 flex items-center justify-between border-b border-honey-light">
+                  <div className="flex items-center gap-2">
+                    <div className={cn("p-2 rounded-xl", config.bgColor)}>
+                      {config.icon}
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-honey-dark opacity-60">
+                        Orden #{tracking.orderCode}
+                      </p>
+                      <p
+                        className={cn(
+                          "text-[11px] font-bold uppercase tracking-tight",
+                          config.color,
+                        )}
+                      >
+                        {config.label}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setIsExpanded(false)}
+                      className="p-1.5 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-400 transition-colors cursor-pointer"
+                    >
+                      <Minimize2 size={14} />
+                    </button>
+                    <button
+                      onClick={handleClose}
+                      className="p-1.5 hover:bg-rose-50 hover:text-rose-500 rounded-lg text-zinc-400 transition-colors cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-honey-dark opacity-60">
-                    Orden #{orderCode}
-                  </p>
-                  <p
-                    className={cn(
-                      "text-[11px] font-bold uppercase tracking-tight",
-                      config.color,
-                    )}
+                <div className="p-3 bg-zinc-50/50 dark:bg-slate-800/50 flex flex-col gap-2">
+                  <Link
+                    href={`${baseUrl}/checkout`}
+                    className="flex items-center justify-between w-full bg-ink text-paper px-4 h-11 rounded-2xl font-bold uppercase text-[9px] tracking-widest hover:scale-[1.02] transition-transform active:scale-95 shadow-sm"
                   >
-                    {config.label}
-                  </p>
+                    <span>Ver Detalles</span>
+                    <ExternalLink size={12} />
+                  </Link>
                 </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setIsMinimized(true)}
-                  className="p-1.5 hover:bg-zinc-100 dark:hover:bg-slate-800 rounded-lg text-zinc-400 transition-colors cursor-pointer"
-                >
-                  <Minimize2 size={14} />
-                </button>
-                <button
-                  onClick={handleClose}
-                  className="p-1.5 hover:bg-rose-50 hover:text-rose-500 rounded-lg text-zinc-400 transition-colors cursor-pointer"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            </div>
-
-            {/* Acciones */}
-            <div className="p-3 bg-zinc-50/50 dark:bg-slate-800/50 flex flex-col gap-2">
-              <Link
-                href={`${baseUrl}/checkout`}
-                className="flex items-center justify-between w-full bg-ink text-paper px-4 h-11 rounded-2xl font-bold uppercase text-[9px] tracking-widest hover:scale-[1.02] transition-transform active:scale-95 shadow-sm"
-              >
-                <span>Ver Detalles</span>
-                <ExternalLink size={12} />
-              </Link>
-
-              {status === "paid" && (
-                <button
-                  onClick={() => stopTracking(tenant_slug)}
-                  className="w-full bg-emerald-500 text-white h-11 rounded-2xl font-bold uppercase text-[9px] tracking-widest hover:bg-emerald-600 transition-colors cursor-pointer"
-                >
-                  Aceptar y Finalizar
-                </button>
-              )}
-            </div>
+              </>
+            ) : (
+              <>
+                {/* Cabecera Estado Inactivo (Rastreo General) */}
+                <div className="p-5 text-center space-y-4">
+                  <div className="mx-auto w-12 h-12 bg-slate-50 dark:bg-slate-800 rounded-2xl flex items-center justify-center text-slate-400">
+                    <Package size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                      Rastrea tu pedido
+                    </h4>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-medium leading-relaxed px-2">
+                      Por el momento no tienes compras pendientes.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsExpanded(false)}
+                    className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Burbuja Flotante (cuando está minimizado o solo como activador) */}
+      {/* Burbuja Flotante Siempre Visible */}
       <motion.button
         layout
-        onClick={() => setIsMinimized(false)}
+        onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
-          "pointer-events-auto mt-3 h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all cursor-pointer relative",
-          isMinimized
-            ? "bg-ink text-paper"
-            : "bg-white text-ink border border-honey-light scale-0",
+          "pointer-events-auto h-14 w-14 rounded-full shadow-2xl flex items-center justify-center transition-all cursor-pointer relative",
+          isExpanded
+            ? "bg-white text-ink border border-honey-light rotate-90 scale-90"
+            : "bg-slate-900 text-white dark:bg-white dark:text-slate-900 scale-100",
         )}
       >
-        <Package size={24} />
-        {isMinimized && (
+        {isExpanded ? <X size={20} /> : <Package size={24} />}
+        {tracking && !isExpanded && (
           <span className="absolute -top-1 -right-1 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-4 w-4 bg-orange-500"></span>

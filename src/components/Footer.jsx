@@ -43,7 +43,9 @@ const Footer = () => {
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const currentYear = new Date().getFullYear();
   const menuSlots = normalizeHeaderMenu(header_menu);
-  const footer = normalizeFooterSettings(footer_settings || DEFAULT_FOOTER_SETTINGS);
+  const footer = normalizeFooterSettings(
+    footer_settings || DEFAULT_FOOTER_SETTINGS,
+  );
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
@@ -53,15 +55,23 @@ const Footer = () => {
   const sections = [
     {
       title: "Comprar",
-      links: [
-        ...menuSlots.map((item) => ({
-          name: item.label,
-          href: item.target_id
-            ? `/products?category=${encodeURIComponent(item.target_id)}`
-            : `${baseUrl}/products`,
-        })),
-        { name: "Colecciones", href: `${baseUrl}/products` },
-      ],
+      links: (() => {
+        // 1. Filtramos para obtener solo los slots que tienen texto (label)
+        const activeLinks = menuSlots
+          .filter((item) => item.label && item.label.trim() !== "")
+          .map((item) => ({
+            name: item.label,
+            href: item.target_id
+              ? `${baseUrl}/products?category=${encodeURIComponent(item.target_id)}`
+              : `${baseUrl}/products`,
+          }));
+
+        // 2. Si hay links guardados, devolvemos solo esos.
+        // 3. Si la lista está totalmente vacía, devolvemos el link por defecto.
+        return activeLinks.length > 0
+          ? activeLinks
+          : [{ name: "Productos", href: `${baseUrl}/products` }];
+      })(),
     },
     {
       title: "Ayuda",
@@ -137,12 +147,16 @@ const Footer = () => {
                   {section.title}
                 </h3>
                 <ul className="space-y-4">
-                  {section.links.map((link) => (
-                    <li key={link.name}>
+                  {section.links.map((link, linkIdx) => (
+                    <li key={`${link.name}-${linkIdx}`}>
                       <Link
                         href={link.href}
                         target={link.name === "Contacto" ? "_blank" : undefined}
-                        rel={link.name === "Contacto" ? "noreferrer noopener" : undefined}
+                        rel={
+                          link.name === "Contacto"
+                            ? "noreferrer noopener"
+                            : undefined
+                        }
                         className="text-sm hover:text-white transition-colors duration-200 font-light"
                       >
                         {link.name}
@@ -168,12 +182,18 @@ const Footer = () => {
                   </AccordionTrigger>
                   <AccordionContent className="text-zinc-500">
                     <ul className="space-y-4 pb-4">
-                      {section.links.map((link) => (
-                        <li key={link.name}>
+                      {section.links.map((link, linkIdx) => (
+                        <li key={`${link.name}-${linkIdx}`}>
                           <Link
                             href={link.href}
-                            target={link.name === "Contacto" ? "_blank" : undefined}
-                            rel={link.name === "Contacto" ? "noreferrer noopener" : undefined}
+                            target={
+                              link.name === "Contacto" ? "_blank" : undefined
+                            }
+                            rel={
+                              link.name === "Contacto"
+                                ? "noreferrer noopener"
+                                : undefined
+                            }
                             className="text-sm"
                           >
                             {link.name}

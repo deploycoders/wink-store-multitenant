@@ -4,7 +4,7 @@ import RelatedProducts from "@/components/public/products/RelatedProducts";
 import { DEFAULT_SITE_NAME, getSiteConfig } from "@/lib/siteConfig";
 import { getTenantIdBySlugCached } from "@/lib/siteConfig.server";
 
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export async function generateMetadata({ params }) {
   const { tenant, slug } = await params;

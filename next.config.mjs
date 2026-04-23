@@ -1,25 +1,25 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Permitir acceso desde móviles/IPs locales en desarrollo para HMR
+  // Permitir acceso desde móviles/IPs locales en desarrollo
   allowedDevOrigins: ["192.168.0.203", "10.2.0.2", "localhost:3000"],
 
-  // Solucionar conflicto de Turbopack (Next.js 15/16)
-  turbopack: {},
+  // Solucionar conflicto de Turbopack
+  experimental: {
+    turbo: {},
+  },
 
   images: {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "rrlmzbtlmrbuzlmphty.supabase.co", // Tu host de Supabase
+        hostname: "rrlmzbtlmrbuzlmphty.supabase.co",
       },
       {
         protocol: "https",
-        hostname: "res.cloudinary.com", // Si usas Cloudinary
+        hostname: "res.cloudinary.com",
       },
     ],
   },
 };
 
 export default nextConfig;
-
-import('@opennextjs/cloudflare').then(m => m.initOpenNextCloudflareForDev());

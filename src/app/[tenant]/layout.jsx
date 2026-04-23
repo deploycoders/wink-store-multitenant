@@ -4,6 +4,7 @@ import ScrollToTop from "@/components/ScrollStop";
 import SiteConfigGate from "@/components/SiteConfigGate";
 import TenantBrandingLayout from "@/components/tenant/TenantBrandingLayout";
 import { OrderTrackingProvider } from "@/components/public/checkout/OrderTrackingProvider";
+import StoreOnboarding from "@/components/public/onboarding/StoreOnboarding";
 import {
   PLATFORM_BRAND_HOSTNAME,
   DEFAULT_SITE_NAME,
@@ -42,6 +43,7 @@ export default async function TenantLayout({ children, params }) {
     <TenantBrandingLayout tenant={tenant}>
       <SiteConfigGate>
         <OrderTrackingProvider>
+          <StoreOnboarding />
           <div className="flex flex-col min-h-screen">
             <ScrollToTop />
             <Header />
