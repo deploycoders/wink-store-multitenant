@@ -59,14 +59,14 @@ export default function Header() {
           {/* IZQUIERDA: Burger (mobile) + Logo (desktop) */}
           <div className="flex items-center">
             <button
-              className="md:hidden h-10 w-10 flex items-center justify-center hover:text-ink transition-colors text-honey-dark"
+              className="lg:hidden h-10 w-10 flex items-center justify-center hover:text-ink transition-colors text-honey-dark"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label="Abrir menú"
             >
               {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
 
-            <Link href={`${baseUrl}/`} className="hidden md:block">
+            <Link href={`${baseUrl}/`} className="hidden lg:block">
               <h1 className="text-xl font-serif font-bold tracking-tighter text-ink uppercase">
                 {site_name}
               </h1>
@@ -74,9 +74,9 @@ export default function Header() {
           </div>
 
           {/* CENTRO: Navegación Desktop */}
-          <nav 
+          <nav
             id="desktop-nav"
-            className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center space-x-6 text-[12px] font-bold tracking-[0.2em] text-honey-dark"
+            className="hidden lg:flex absolute left-1/2 -translate-x-1/2 items-center space-x-6 text-[12px] font-bold tracking-[0.2em] text-honey-dark"
           >
             {dynamicMenu.map((item) => (
               <button
@@ -117,7 +117,7 @@ export default function Header() {
           </div>
 
           {/* LOGO CENTRADO EN MOBILE */}
-          <div className="md:hidden absolute left-1/2 -translate-x-1/2 w-[calc(100%-7.5rem)] max-w-[320px] text-center">
+          <div className="lg:hidden absolute left-1/2 -translate-x-1/2 w-[calc(100%-7.5rem)] max-w-[320px] text-center">
             <Link href={`${baseUrl}/`} className="block">
               <h1 className="text-base font-serif font-bold tracking-tight text-ink uppercase truncate">
                 {site_name}
@@ -133,7 +133,7 @@ export default function Header() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="md:hidden bg-paper border-b border-honey-light absolute w-full left-0 z-40"
+              className="lg:hidden bg-paper border-b border-honey-light absolute w-full left-0 z-40"
             >
               <nav className="flex flex-col p-6 space-y-4 text-xs font-bold tracking-widest text-honey-dark">
                 {dynamicMenu.map((item) => (

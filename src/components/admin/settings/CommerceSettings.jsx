@@ -66,7 +66,7 @@ export default function CommerceSettings({ value, onChange }) {
       />
 
       <div className="space-y-8">
-        <div className="max-w-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-100 dark:border-zinc-800">
           <div>
             <label className={labelClassName}>
               <Smartphone size={10} /> WhatsApp ventas
@@ -80,6 +80,36 @@ export default function CommerceSettings({ value, onChange }) {
               className={inputClassName}
               placeholder="584245555555"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelClassName}>Moneda Principal</label>
+              <select
+                value={value.currency_code || "USD"}
+                onChange={(e) => handleFieldChange("currency_code", e.target.value)}
+                className={inputClassName}
+              >
+                <option value="USD">USD ($)</option>
+                <option value="COP">COP (Pesos)</option>
+                <option value="VES">VES (Bolívares)</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelClassName}>Símbolo</label>
+              <input
+                type="text"
+                value={value.currency_symbol ?? "$"}
+                onChange={(e) => handleFieldChange("currency_symbol", e.target.value)}
+                onBlur={(e) => {
+                  if (!e.target.value.trim()) {
+                    handleFieldChange("currency_symbol", "$");
+                  }
+                }}
+                className={inputClassName}
+                placeholder="$"
+              />
+            </div>
           </div>
         </div>
         

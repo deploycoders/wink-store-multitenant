@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import Swal from "sweetalert2";
+import { updateOrderStatusAction } from "@/app/actions/admin/orderActions";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -140,70 +141,34 @@ export default function OrdersPage() {
 
   const updateStatus = async (id, newStatus, reason = null) => {
     if (!tenantId) {
-      Swal.fire("Error", "No se pudo resolver tenant_id para actualizar.", "error");
+      Swal.fire(
+        "Error",
+        "No se pudo resolver tenant_id para actualizar.",
+        "error",
+      );
       return;
     }
 
-    const updateData = { estado: newStatus };
-    if (reason) updateData.motivo_rechazo = reason;
+    Swal.fire({
+      title: "Actualizando...",
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
 
-    // Obtener la orden para enriquecer el log
-    const orderRef = orders.find((o) => o.id === id);
+    const response = await updateOrderStatusAction({
+      orderId: id,
+      newStatus,
+      tenantId,
+      reason,
+      userId: currentUser?.id,
+      userEmail: currentUser?.email,
+    });
 
-    let updateQuery = supabase
-      .from("orders")
-      .update(updateData)
-      .eq("id", id)
-      .select("id, estado");
-    if (tenantId) {
-      updateQuery = updateQuery.eq("tenant_id", tenantId);
-    }
-    let { data: updatedOrder, error } = await updateQuery.maybeSingle();
+    Swal.close();
 
-    if (
-      error &&
-      reason &&
-      typeof error.message === "string" &&
-      error.message.includes("motivo_rechazo")
-    ) {
-      let fallbackQuery = supabase
-        .from("orders")
-        .update({ estado: newStatus })
-        .eq("id", id)
-        .select("id, estado");
-      if (tenantId) {
-        fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
-      }
-      const fallback = await fallbackQuery.maybeSingle();
-      error = fallback.error;
-      updatedOrder = fallback.data;
-    }
-
-    if (!error && !updatedOrder) {
-      error = {
-        message:
-          "No se actualizó ninguna orden. Verifica tenant_id, permisos RLS o si la orden existe.",
-      };
-    }
-
-    if (!error) {
-      // Registrar en bitácora
-      const accion = newStatus === "paid" ? "aceptar" : "rechazar";
-      await logAudit(supabase, {
-        tipo: "orden",
-        accion,
-        descripcion: `Orden #${toOrderCode(id)} marcada como "${newStatus}"${reason ? ` — Motivo: ${reason}` : ""}`,
-        usuario_id: currentUser?.id ?? null,
-        usuario_nombre: currentUser?.email ?? "Admin",
-        meta: {
-          order_id: id,
-          nuevo_estado: newStatus,
-          motivo_rechazo: reason ?? null,
-          cliente: orderRef?.clientes?.nombre_completo ?? null,
-          total: orderRef?.total ?? null,
-        },
-      });
-
+    if (response.success) {
       Swal.fire({
         toast: true,
         position: "top-end",
@@ -214,7 +179,7 @@ export default function OrdersPage() {
       });
       fetchOrders();
     } else {
-      Swal.fire("Error", getErrorMessage(error), "error");
+      Swal.fire("Error", response.error || "No se pudo actualizar", "error");
     }
   };
 

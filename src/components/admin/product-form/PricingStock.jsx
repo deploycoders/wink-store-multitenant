@@ -1,12 +1,15 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   DollarSign,
   Hash,
   TrendingDown,
   Lock,
   AlertTriangle,
+  RefreshCw,
+  Calculator,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { convertPrice } from "@/services/exchangeRates";
 
 const PricingStock = ({
   formData,
@@ -14,10 +17,34 @@ const PricingStock = ({
   readOnly = false,
   effectiveStock,
   autoCalculated = false,
+  exchangeRates = null,
+  commerceSettings = {},
 }) => {
+  const [workingCurrency, setWorkingCurrency] = useState("USD");
+  const [calcValue, setCalcValue] = useState("");
+
+  const primaryCurrency = commerceSettings?.currency_code || "USD";
+  const primarySymbol = commerceSettings?.currency_symbol || "$";
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const applyConversion = () => {
+    if (!exchangeRates || !calcValue) return;
+
+    const amount = parseFloat(calcValue);
+    const targetBaseCurrency = formData.base_currency || primaryCurrency;
+    
+    // Convertir del workingCurrency al baseCurrency del producto
+    const result = convertPrice(amount, workingCurrency, targetBaseCurrency, exchangeRates);
+
+    setFormData((prev) => ({
+      ...prev,
+      price: result.toFixed(2), // Restauramos decimales para mayor precisión
+    }));
+    setCalcValue("");
   };
 
   const hasDiscount =
@@ -43,8 +70,24 @@ const PricingStock = ({
                   className="text-slate-600 dark:text-slate-400"
                 />
               </div>
-              Precio Base ($)
+              Precio Base
             </label>
+            {!readOnly ? (
+              <select
+                name="base_currency"
+                value={formData.base_currency || primaryCurrency}
+                onChange={handleChange}
+                className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5 outline-none border-none cursor-pointer transition-colors hover:bg-slate-200 dark:hover:bg-slate-700"
+              >
+                <option value="USD">USD</option>
+                <option value="COP">COP</option>
+                <option value="VES">VES</option>
+              </select>
+            ) : (
+              <span className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded px-2 py-0.5">
+                {formData.base_currency || primaryCurrency}
+              </span>
+            )}
           </div>
           <Input
             required
@@ -57,6 +100,26 @@ const PricingStock = ({
             onChange={handleChange}
             disabled={readOnly}
           />
+
+          {/* Previsualización de conversión en vivo */}
+          {exchangeRates && parseFloat(formData.price) > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 space-y-1">
+              {(formData.base_currency || primaryCurrency) !== "USD" && (
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                  Ref. Interna: ${" "}
+                  {convertPrice(parseFloat(formData.price), formData.base_currency || primaryCurrency, "USD", exchangeRates).toFixed(2)}{" "}
+                  USD
+                </p>
+              )}
+              {(formData.base_currency || primaryCurrency) === "USD" && primaryCurrency !== "USD" && (
+                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">
+                  Público: ≈{" "}
+                  {convertPrice(parseFloat(formData.price), "USD", primaryCurrency, exchangeRates).toLocaleString(undefined, { minimumFractionDigits: 2 })}{" "}
+                  {primaryCurrency}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Precio de Oferta */}
@@ -171,6 +234,77 @@ const PricingStock = ({
           )}
         </div>
       </div>
+
+      {/* Asistente de Conversión */}
+      {!readOnly && exchangeRates && (
+        <div className="mt-2 p-4 bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-slate-500 text-white rounded-lg shadow-lg shadow-slate-500/20">
+              <Calculator size={16} />
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white leading-none">
+                Asistente de Conversión
+              </h4>
+              <p className="text-[9px] text-slate-500 font-medium mt-1">
+                Ingresa el precio en otra moneda para calcular el valor base.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={workingCurrency}
+              onChange={(e) => setWorkingCurrency(e.target.value)}
+              className="h-10 px-4 rounded-md border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-black uppercase tracking-widest focus:ring-2 focus:ring-slate-500 outline-none transition-all cursor-pointer"
+            >
+              <option value="USD">USD</option>
+              <option value="COP">COP</option>
+              <option value="VES">VES</option>
+            </select>
+
+            <div className="flex-1 min-w-[150px]">
+              <Input
+                type="number"
+                placeholder={`Monto en ${workingCurrency}...`}
+                value={calcValue}
+                onChange={(e) => setCalcValue(e.target.value)}
+                className="h-10 border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 font-bold"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={applyConversion}
+              disabled={!calcValue || parseFloat(calcValue) <= 0}
+              className="h-10 px-6 bg-slate-700 hover:bg-slate-900 disabled:bg-slate-300 dark:disabled:bg-slate-800 text-white rounded-md font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg shadow-slate-600/20 flex items-center gap-2 cursor-pointer"
+            >
+              <RefreshCw
+                size={14}
+                className={calcValue ? "animate-spin-slow" : ""}
+              />
+              Aplicar a Precio
+            </button>
+          </div>
+
+          {calcValue && exchangeRates && (
+            <div className="mt-4 flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700 animate-in fade-in slide-in-from-left-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-700 dark:bg-slate-400 animate-pulse" />
+              <p className="text-[10px] font-bold text-slate-700 dark:text-slate-400 uppercase tracking-tight">
+                Resultado estimado:{" "}
+                <span className="text-slate-700 dark:text-slate-400">
+                  {(() => {
+                    const amount = parseFloat(calcValue);
+                    const targetBaseCurrency = formData.base_currency || primaryCurrency;
+                    const result = convertPrice(amount, workingCurrency, targetBaseCurrency, exchangeRates);
+                    return `${result.toLocaleString(undefined, { minimumFractionDigits: 2 })} ${targetBaseCurrency}`;
+                  })()}
+                </span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Alerta de validación */}
       {hasDiscount &&

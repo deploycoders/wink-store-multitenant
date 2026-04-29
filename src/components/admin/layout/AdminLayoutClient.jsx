@@ -10,6 +10,7 @@ import { SiteConfigProvider } from "@/context/SiteConfigContext";
 import AdminSidebar from "@/components/admin/layout/AdminSidebar";
 import AdminHeader from "@/components/admin/layout/AdminHeader";
 import AdminMobileMenu from "@/components/admin/layout/AdminMobileMenu";
+import FloatingRates from "@/components/admin/currency/FloatingRates";
 
 const ROLE_PERMISSIONS = {
   super_admin: [
@@ -169,13 +170,15 @@ export default function AdminLayoutClient({
 
           <main
             className={`
-            flex-1 p-4 lg:p-6 pt-24 lg:pt-28 transition-all duration-500
+            flex-1 p-4 lg:p-6 pt-24 lg:pt-28 pb-24 lg:pb-28 transition-all duration-500
             ${isCollapsed ? "lg:ml-20" : "lg:ml-64"}
             ml-0 w-full max-w-full overflow-x-hidden
           `}
           >
             {children}
           </main>
+
+          <FloatingRates />
         </div>
     </SiteConfigProvider>
   );

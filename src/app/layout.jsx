@@ -18,7 +18,7 @@ export async function generateMetadata() {
 
   return {
     title: {
-      default: `${brand} | Tu tienda de estilo`,
+      default: `${brand} | Tu tienda de ecommerce`,
       template: `%s | ${brand}`,
     },
     description: baseDescription,

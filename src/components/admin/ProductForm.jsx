@@ -13,6 +13,8 @@ import MediaAndStatus from "./product-form/MediaAndStatus";
 import VariantManager from "./product-form/VariantManager";
 import { CLOUDINARY_CONFIG } from "./product-form/config";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import { getExchangeRates } from "@/services/exchangeRates";
+import { createClient } from "@/lib/supabase/client";
 import {
   buildTenantCloudinaryFolder,
   slugifyCloudinarySegment,
@@ -25,6 +27,18 @@ const ProductForm = ({
   editingProduct = null,
   readOnly = false,
 }) => {
+  const { commerce_settings } = useSiteConfig();
+  const supabase = createClient();
+  const [exchangeRates, setExchangeRates] = useState(null);
+
+  useEffect(() => {
+    const fetchRates = async () => {
+      const rates = await getExchangeRates(supabase);
+      setExchangeRates(rates);
+    };
+    fetchRates();
+  }, []);
+
   const sanitizeVariants = (variants = []) =>
     variants.map((v) => ({
       ...v,
@@ -59,6 +73,7 @@ const ProductForm = ({
     slug: "",
     variants: [],
     manage_stock: true, // Por defecto manejamos stock
+    base_currency: commerce_settings?.currency_code || "USD",
   });
 
   useEffect(() => {
@@ -84,6 +99,7 @@ const ProductForm = ({
             editingProduct.stock || 0,
           ),
           manage_stock: editingProduct.manage_stock ?? (editingProduct.stock < 900000), // Si es muy alto, asumimos que no maneja stock
+          base_currency: editingProduct.base_currency || commerce_settings?.currency_code || "USD",
         });
       } else {
         resetForm();
@@ -113,6 +129,7 @@ const ProductForm = ({
       slug: "",
       variants: [], // <-- SIEMPRE ARRAY VACÍO (Esto evita el error en VariantManager)
       manage_stock: true,
+      base_currency: commerce_settings?.currency_code || "USD",
     });
   };
 
@@ -416,8 +433,10 @@ const ProductForm = ({
                     formData={formData}
                     setFormData={setFormData}
                     readOnly={readOnly}
-                    effectiveStock={effectiveStock}
-                    autoCalculated={isAutoStock}
+                    effectiveStock={calculateTotalStock(formData.variants, formData.stock)}
+                    autoCalculated={formData.variants?.length > 0}
+                    exchangeRates={exchangeRates}
+                    commerceSettings={commerce_settings}
                   />
                 </div>
               </div>

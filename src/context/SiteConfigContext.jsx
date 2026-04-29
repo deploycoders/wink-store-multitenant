@@ -23,6 +23,8 @@ import {
 } from "@/lib/siteConfig";
 import { createClient } from "@/lib/supabase/client";
 
+import { getExchangeRates } from "@/services/exchangeRates";
+
 const SiteConfigContext = createContext();
 
 const resolveLegacyFooterSettings = (row = {}) => {
@@ -53,16 +55,23 @@ export function SiteConfigProvider({
     promo_divider: DEFAULT_PROMO_DIVIDER,
     footer_settings: DEFAULT_FOOTER_SETTINGS,
     commerce_settings: DEFAULT_COMMERCE_SETTINGS,
+    exchange_rates: null,
     loading: true,
   });
 
   const fetchConfig = useCallback(async () => {
     try {
-      const data = await getSiteConfig({ tenantId });
+      const supabase = createClient();
+      const [data, rates] = await Promise.all([
+        getSiteConfig({ tenantId }),
+        getExchangeRates(supabase),
+      ]);
+      
       setConfig((prev) => ({
         ...data,
         hero_slides: normalizeHeroSlides(data.hero_slides),
         tenant_slug: prev.tenant_slug, // Preservamos el slug que viene de props
+        exchange_rates: rates,
         loading: false,
       }));
     } catch (error) {

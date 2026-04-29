@@ -59,14 +59,14 @@ export default function CollectionsSlider() {
       <Carousel
         plugins={isSingleSlide ? [] : [plugin.current]}
         opts={{ align: "start", loop: !isSingleSlide }}
-        className="w-full max-w-7xl mx-auto overflow-hidden rounded-[3rem] border border-zinc-100 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm"
+        className="w-full max-w-7xl mx-auto overflow-hidden rounded-lg border border-zinc-300 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm"
       >
         <CarouselContent className="ml-0">
           {hero_slides.map((slide) => (
             <CarouselItem key={slide.id} className="pl-0">
-              <div className="flex flex-col lg:flex-row items-stretch h-auto lg:h-[480px]">
+              <div className="flex flex-col md:flex-row items-stretch h-auto md:h-[350px] lg:h-[380px]">
                 {/* IMAGEN */}
-                <div className="w-full lg:w-1/2 relative h-72 lg:h-full bg-zinc-50 dark:bg-slate-800 overflow-hidden shrink-0">
+                <div className="w-full md:w-1/2 relative h-56 md:h-full lg:h-full bg-zinc-50 dark:bg-slate-800 overflow-hidden shrink-0">
                   <motion.div
                     initial={{ scale: 1.1 }}
                     animate={{ scale: 1 }}
@@ -84,7 +84,7 @@ export default function CollectionsSlider() {
                 </div>
 
                 {/* TEXTO */}
-                <div className="w-full lg:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center bg-white dark:bg-slate-900 transition-colors duration-500">
+                <div className="w-full md:w-1/2 p-6 md:p-8 lg:p-10 flex flex-col justify-center bg-white dark:bg-slate-900 transition-colors duration-500">
                   <motion.span
                     variants={itemVariants}
                     className="text-zinc-400 dark:text-zinc-500 text-[10px] font-bold uppercase tracking-[0.3em] mb-4 inline-block"
@@ -108,26 +108,28 @@ export default function CollectionsSlider() {
 
                   <motion.div
                     variants={itemVariants}
-                    className="flex flex-wrap items-center justify-between gap-4 mt-auto"
+                    className="flex items-center gap-4 mt-auto w-full"
                   >
+                    {/* Botón Principal */}
                     <Button
                       asChild
-                      className="group px-8 lg:px-10 h-12 text-[10px] font-bold uppercase tracking-[0.2em] bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-900 dark:hover:bg-zinc-100 active:scale-[0.97] cursor-pointer transition-all duration-300 shadow-sm shrink-0 rounded-xl"
+                      className="group flex-1 md:flex-none lg:flex-none px-8 h-12 text-[10px] font-bold uppercase tracking-[0.2em] bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-900 dark:hover:bg-zinc-100 active:scale-[0.97] transition-all duration-300 shadow-sm rounded-md"
                     >
                       <Link
                         href={`${baseUrl}/products`}
                         prefetch={false}
-                        className="flex items-center"
+                        className="flex items-center justify-center whitespace-nowrap"
                       >
                         Comprar Ahora
                         <ArrowRight className="ml-3 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                       </Link>
                     </Button>
 
+                    {/* Contenedor de Flechas: Solo visible desde 450px en adelante */}
                     {!isSingleSlide && (
-                      <div className="hidden sm:flex gap-2">
-                        <CarouselPrevious className="static translate-y-0 h-10 w-10 border-zinc-200 dark:border-slate-700 shadow-none hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors rounded-xl cursor-pointer" />
-                        <CarouselNext className="static translate-y-0 h-10 w-10 border-zinc-200 dark:border-slate-700 shadow-none hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors rounded-xl cursor-pointer" />
+                      <div className="hidden min-[450px]:flex items-center gap-2 shrink-0">
+                        <CarouselPrevious className="static translate-y-0 h-10 w-10 border-zinc-200 dark:border-slate-700 shadow-none hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors rounded-xl" />
+                        <CarouselNext className="static translate-y-0 h-10 w-10 border-zinc-200 dark:border-slate-700 shadow-none hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-colors rounded-xl" />
                       </div>
                     )}
                   </motion.div>

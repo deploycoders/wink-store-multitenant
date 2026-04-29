@@ -12,8 +12,10 @@ export function OrderSummary({
   deliveryFee = 0,
   threshold = 50,
   brandImageLabel = DEFAULT_SITE_NAME,
+  shippingMethod = "delivery",
 }) {
-  const isFree = subtotal >= threshold && threshold > 0;
+  const isFree = shippingMethod === "pickup" || (subtotal >= threshold && threshold > 0);
+
 
   return (
     <div className="bg-white border border-zinc-100 rounded-md p-8 shadow-xl shadow-zinc-200/50 h-fit">
@@ -72,11 +74,13 @@ export function OrderSummary({
         <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-400">
           <span>Envío</span>
           <span className={cn(isFree ? "text-emerald-500" : "text-amber-500")}>
-            {isFree
-              ? "Gratis"
-              : deliveryFee > 0
-                ? `$${deliveryFee.toFixed(2)}`
-                : "Cobro en destino"}
+            {shippingMethod === "pickup"
+              ? "Gratis (Retiro)"
+              : isFree
+                ? "Gratis"
+                : deliveryFee > 0
+                  ? `$${deliveryFee.toFixed(2)}`
+                  : "Cobro en destino"}
           </span>
         </div>
 

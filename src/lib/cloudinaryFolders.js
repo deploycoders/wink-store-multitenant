@@ -7,7 +7,7 @@
 //   ecommerce-multitenant/tenants/shop-style/catalog/categories/...
 
 export const CLOUDINARY_ROOT_FOLDER =
-  process.env.NEXT_PUBLIC_CLOUDINARY_ROOT_FOLDER || "ecommerce-multitenant";
+  process.env.NEXT_PUBLIC_CLOUDINARY_ROOT_FOLDER || "wink_store";
 
 export function slugifyCloudinarySegment(input) {
   return String(input || "")
@@ -40,7 +40,6 @@ export function buildTenantCloudinaryFolder({
   const cleanArea = slugifyCloudinarySegment(area);
   const parts = [
     CLOUDINARY_ROOT_FOLDER,
-    "tenants",
     tenantFolder,
     cleanArea || null,
     subpath ? String(subpath).replace(/^\/+|\/+$/g, "") : null,

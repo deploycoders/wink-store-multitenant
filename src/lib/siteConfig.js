@@ -41,9 +41,8 @@ export const DEFAULT_HOME_INTRO = {
 };
 
 export const DEFAULT_PRODUCTS_INTRO = {
-  title: "Tu tienda de estilo",
-  description:
-    "Diseños meticulosos, materiales nobles y una estética que trasciende las temporadas. Encuentra tu próxima pieza esencial.",
+  title: "Tu tienda de ecommerce",
+  description: "Compra todo lo que necesitas en un solo lugar.",
 };
 
 export const DEFAULT_HEADER_MENU = [
@@ -130,6 +129,8 @@ export const DEFAULT_COMMERCE_SETTINGS = {
     "Aqui puedes definir condiciones de compra, envios, devoluciones, garantias, limitaciones de responsabilidad y uso general de la tienda.",
   delivery_fee: 5.0,
   free_shipping_threshold: 50.0,
+  currency_code: "USD",
+  currency_symbol: "$",
 };
 
 export const normalizeHeaderMenu = (menu) => {

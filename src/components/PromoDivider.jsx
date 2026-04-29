@@ -6,11 +6,18 @@ import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useSiteConfig } from "@/context/SiteConfigContext";
-import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+import { DEFAULT_SITE_NAME, DEFAULT_PROMO_DIVIDER } from "@/lib/siteConfig";
 
 export default function PromoDivider() {
   const containerRef = useRef(null);
-  const { site_name, tenant_slug } = useSiteConfig();
+  const { site_name, tenant_slug, promo_divider } = useSiteConfig();
+
+  // Fusionamos los datos de la DB con los defaults como respaldo
+  const settings = {
+    ...DEFAULT_PROMO_DIVIDER,
+    ...(promo_divider || {}),
+  };
+
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
   const { scrollYProgress } = useScroll({
@@ -50,28 +57,27 @@ export default function PromoDivider() {
               style={{ y: textY }}
               className="bg-black/60 md:bg-black/40 backdrop-blur-md p-6 md:p-10 border border-white/10 rounded-lg max-w-85"
             >
-              <h3 className="text-zinc-400 text-[9px] font-bold uppercase tracking-[0.4em] mb-4">
-                {brand} / Archive 2026
+              <h3 className="text-zinc-400 text-[8px] font-bold uppercase tracking-[0.4em] mb-4">
+                {brand} {settings.eyebrow && `/ ${settings.eyebrow}`}
               </h3>
 
-              <h2 className="text-3xl md:text-5xl font-light text-white uppercase leading-tight tracking-tighter mb-6">
-                The New <br />
+              <h2 className="text-3xl md:text-4xl font-light text-white uppercase leading-tight tracking-tighter mb-6">
+                {settings.title_primary} <br />
                 <span className="font-serif italic font-normal text-zinc-300">
-                  Standard
+                  {settings.title_secondary}
                 </span>
               </h2>
 
-              <p className="text-zinc-400 text-[10px] md:text-xs leading-relaxed mb-8 uppercase tracking-[0.15em] opacity-90">
-                Piezas diseñadas para resistir el paso del tiempo y las
-                tendencias globales.
+              <p className="text-zinc-400 text-[10px] leading-relaxed mb-8 uppercase tracking-[0.15em] opacity-90">
+                {settings.description}
               </p>
 
               <Button
                 asChild
-                className="group relative bg-white text-black rounded-none px-8 h-12 text-[9px] font-bold uppercase tracking-[0.2em] overflow-hidden"
+                className="group relative w-full bg-white text-black px-8 h-12 text-[9px] font-bold uppercase tracking-[0.2em] overflow-hidden"
               >
                 <Link href={`${baseUrl}/products`}>
-                  <span className="relative z-10">Explorar Selección</span>
+                  <span className="relative z-10">{settings.cta_label}</span>
                   <div className="absolute inset-0 bg-zinc-200 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 </Link>
               </Button>
@@ -90,7 +96,7 @@ export default function PromoDivider() {
           <div className="absolute inset-0 bg-black/30 z-10" />{" "}
           {/* Oscurecedor extra */}
           <AdaptiveImage
-            src="/banner-image2.jpg"
+            src={settings.image || "/banner-image2.jpg"}
             alt={`${brand} Collection`}
             fill
             className="object-cover object-center brightness-[0.7]"
@@ -103,7 +109,7 @@ export default function PromoDivider() {
       <div className="max-w-7xl w-full px-8 mt-6 flex justify-between items-center text-zinc-500">
         <div className="h-px flex-1 bg-zinc-800 mr-8 hidden md:block" />
         <p className="text-[8px] md:text-[9px] font-medium uppercase tracking-[0.5em] whitespace-nowrap">
-          Minimal Aesthetics — Edition 001
+          {settings.footer_text}
         </p>
       </div>
     </section>

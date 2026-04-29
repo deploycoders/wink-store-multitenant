@@ -83,6 +83,7 @@ export default function HeaderMenuSettings({ headerMenu, onHeaderMenuChange }) {
           icon={<Menu size={30} />}
           title="Menú Principal"
           description="Configura los enlaces directos que aparecerán en el encabezado de tu tienda."
+          warning="Se recomienda no tener mas de 3 o 4 enlaces para no dañar la experiencia de usuario"
         />
         <button
           type="button"

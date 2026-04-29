@@ -33,7 +33,8 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, AlertCircle } from "lucide-react";
+import Swal from "sweetalert2";
 
 const hasValueChanged = (currentValue, nextValue) =>
   JSON.stringify(currentValue) !== JSON.stringify(nextValue);
@@ -57,6 +58,7 @@ export default function SiteSettingsManager() {
   const supabase = createClient();
 
   const [siteName, setSiteName] = useState(currentName || "");
+  const [newTenantSlug, setNewTenantSlug] = useState(tenantSlug || "");
   const [slides, setSlides] = useState(normalizeSlides(currentSlides));
   const [homeIntro, setHomeIntro] = useState(DEFAULT_HOME_INTRO);
   const [productsIntro, setProductsIntro] = useState(DEFAULT_PRODUCTS_INTRO);
@@ -71,9 +73,14 @@ export default function SiteSettingsManager() {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState({ type: "", message: "" });
+  const [nameChangeHistory, setNameChangeHistory] = useState([]);
+  const [nameChangeLimitReached, setNameChangeLimitReached] = useState(false);
+  const [changesLeft, setChangesLeft] = useState(3);
+  const [isLoadingIdentity, setIsLoadingIdentity] = useState(true);
 
   useEffect(() => {
     setSiteName(currentName);
+    setNewTenantSlug(tenantSlug);
     setSlides(normalizeSlides(currentSlides));
     setHomeIntro({ ...DEFAULT_HOME_INTRO, ...(currentHomeIntro || {}) });
     setProductsIntro({
@@ -116,6 +123,61 @@ export default function SiteSettingsManager() {
 
     loadActor();
   }, [supabase]);
+
+  // Verificar límite de cambios de nombre y cargar slug actual
+  useEffect(() => {
+    const checkNameLimit = async () => {
+      if (!tenantId) return;
+      const { data } = await supabase
+        .from("tenants")
+        .select("name_change_history, slug")
+        .eq("tenant_id", tenantId)
+        .single();
+
+      if (data) {
+        // Cargar el slug actual si el estado está vacío
+        if (data.slug) {
+          setNewTenantSlug(data.slug);
+        }
+
+        const history = Array.isArray(data.name_change_history)
+          ? data.name_change_history
+          : [];
+        setNameChangeHistory(history);
+
+        // Contar cambios en los últimos 30 días
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const recentChanges = history.filter((dateStr) => {
+          const changeDate = new Date(dateStr);
+          return changeDate > thirtyDaysAgo;
+        });
+
+        const left = Math.max(0, 3 - recentChanges.length);
+        setChangesLeft(left);
+
+        if (left <= 0) {
+          setNameChangeLimitReached(true);
+        } else {
+          setNameChangeLimitReached(false);
+        }
+      }
+      setIsLoadingIdentity(false);
+    };
+
+    checkNameLimit();
+  }, [tenantId, supabase, currentName]);
+
+  const handleNameChange = (val) => {
+    setSiteName(val);
+    const autoSlug = val
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+    setNewTenantSlug(autoSlug);
+  };
 
   const handleAddSlide = () => {
     if (slides.length >= 3) return;
@@ -241,115 +303,123 @@ export default function SiteSettingsManager() {
     }
   };
 
-  const handleSave = async () => {
-    setLoading(true);
-    setStatus({ type: "", message: "" });
-
-    const changeMap = {
-      site_name: hasValueChanged(currentName, siteName),
-      hero_slides: hasValueChanged(currentSlides, slides),
-      home_intro: hasValueChanged(currentHomeIntro, homeIntro),
-      products_intro: hasValueChanged(currentProductsIntro, productsIntro),
-      header_menu: hasValueChanged(currentHeaderMenu, headerMenu),
-      promo_divider: hasValueChanged(currentPromoDivider, promoDivider),
-      footer_settings: hasValueChanged(currentFooterSettings, footerSettings),
-      commerce_settings: hasValueChanged(
-        currentCommerceSettings,
-        commerceSettings,
-      ),
-    };
-
-    const changedSections = Object.entries(changeMap)
-      .filter(([, changed]) => changed)
-      .map(([key]) => key);
-
-    try {
-      await updateSiteConfig(
-        {
-          site_name: siteName,
-          hero_slides: slides,
-          home_intro: homeIntro,
-          products_intro: productsIntro,
-          header_menu: headerMenu,
-          promo_divider: promoDivider,
-          footer_settings: footerSettings,
-          commerce_settings: commerceSettings,
-        },
-        { tenantId },
-      );
-
-      await logAudit(supabase, {
-        tipo: "ajuste",
-        accion: "editar",
-        descripcion:
-          changedSections.length > 0
-            ? `Configuración web actualizada: ${changedSections.join(", ")}`
-            : "Configuración web guardada sin cambios detectados",
-        usuario_id: currentUser?.id ?? null,
-        usuario_nombre: actorName,
-        meta: {
-          changed_sections: changedSections,
-          site_name: siteName,
-          hero_slides_count: slides.length,
-          home_intro_title: homeIntro.title,
-          products_intro_title: productsIntro.title,
-          header_menu,
-          promo_divider_title:
-            `${promoDivider.title_primary} ${promoDivider.title_secondary}`.trim(),
-          footer_description: footerSettings.description,
-          commerce_settings: {
-            whatsapp_number: commerceSettings.whatsapp_number,
-            payment_methods: commerceSettings.payment_methods,
-          },
-        },
-      });
-
-      setStatus({
-        type: "success",
-        message: "Configuración guardada correctamente",
-      });
-      refresh();
-      setTimeout(() => setStatus({ type: "", message: "" }), 3000);
-    } catch (err) {
-      console.error("DETALLE DEL ERROR:", {
-        message: err.message,
-        stack: err.stack,
-        errorCompleto: err,
-      });
-
-      setStatus({
-        type: "error",
-        message: err.message || "Error al guardar la configuración",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getPayloadForSection = (section) => {
-    switch (section) {
-      case "general":
-        return { site_name: siteName, header_menu: headerMenu };
-      case "home":
-        return {
-          hero_slides: slides,
-          home_intro: homeIntro,
-          products_intro: productsIntro,
-          promo_divider: promoDivider,
-        };
-      case "footer":
-        return {
-          footer_settings: footerSettings,
-          commerce_settings: commerceSettings,
-        };
-      default:
-        return {};
-    }
-  };
-
   const handleSaveSection = async (section) => {
     const payload = getPayloadForSection(section);
     if (!Object.keys(payload).length) return;
+
+    if (section === "general") {
+      const slugChanged = newTenantSlug !== tenantSlug;
+      const nameChanged = siteName !== currentName;
+
+      // 1. Validar límite de cambios de nombre/slug (3 al mes)
+      if (nameChanged && nameChangeLimitReached) {
+        Swal.fire({
+          title: "Límite alcanzado",
+          text: "Has alcanzado el límite de 3 cambios de identidad por mes.",
+          icon: "error",
+          confirmButtonColor: "#0f172a",
+        });
+        return;
+      }
+
+      if (slugChanged) {
+        // Validar disponibilidad del slug
+        const { data: existing } = await supabase
+          .from("tenants")
+          .select("tenant_id")
+          .eq("slug", newTenantSlug)
+          .maybeSingle();
+
+        if (existing && existing.tenant_id !== tenantId) {
+          Swal.fire({
+            title: "URL No Disponible",
+            text: "Este identificador ya está siendo usado por otra tienda. Elige uno diferente.",
+            icon: "error",
+            confirmButtonColor: "#0f172a",
+          });
+          return;
+        }
+
+        const result = await Swal.fire({
+          title: "¿Cambiar URL y Nombre?",
+          text: "Esto cambiará el nombre y la URL de tu tienda. Los enlaces viejos dejarán de funcionar. ¿Estás seguro?",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Sí, cambiar Nombre y URL",
+          cancelButtonText: "Cancelar",
+          confirmButtonColor: "#ef4444",
+          cancelButtonColor: "#64748b",
+        });
+
+        if (!result.isConfirmed) return;
+      }
+
+      setLoading(true);
+      try {
+        if (slugChanged || nameChanged) {
+          const tenantUpdate = {
+            name: siteName,
+          };
+          
+          if (slugChanged) {
+            tenantUpdate.slug = newTenantSlug;
+            tenantUpdate.slug_updated_at = new Date().toISOString();
+          }
+
+          // Si el nombre cambió, actualizamos el historial
+          if (nameChanged) {
+            tenantUpdate.name_change_history = [
+              ...nameChangeHistory,
+              new Date().toISOString(),
+            ];
+          }
+
+          const { error: tErr } = await supabase
+            .from("tenants")
+            .update(tenantUpdate)
+            .eq("tenant_id", tenantId);
+
+          if (tErr) {
+            console.error("Error actualizando tabla tenants:", tErr);
+            throw new Error(`Error en tabla tenants: ${tErr.message}`);
+          }
+        }
+
+        await updateSiteConfig(payload, { tenantId });
+
+        await logAudit(supabase, {
+          tipo: "ajuste",
+          accion: "editar",
+          descripcion: "Identidad de tienda actualizada (Nombre/Slug)",
+          usuario_id: currentUser?.id ?? null,
+          usuario_nombre: actorName,
+          meta: { section, siteName, newTenantSlug },
+        });
+
+        Swal.fire({
+          title: "¡Guardado!",
+          text: "La identidad de tu tienda se ha actualizado correctamente.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+
+        // Simplemente refrescamos los datos para ver el nuevo nombre en el admin
+        // sin movernos de la URL actual /admin/settings
+        refresh();
+      } catch (err) {
+        console.error("DETALLE DEL ERROR AL GUARDAR:", err);
+        Swal.fire({
+          title: "Error al guardar",
+          text: err.message || "Ocurrió un error inesperado al actualizar la configuración",
+          icon: "error",
+          confirmButtonColor: "#0f172a",
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     setLoading(true);
     setStatus({ type: "", message: "" });
@@ -389,6 +459,27 @@ export default function SiteSettingsManager() {
     }
   };
 
+  const getPayloadForSection = (section) => {
+    switch (section) {
+      case "general":
+        return { site_name: siteName, header_menu: headerMenu };
+      case "home":
+        return {
+          hero_slides: slides,
+          home_intro: homeIntro,
+          products_intro: productsIntro,
+          promo_divider: promoDivider,
+        };
+      case "footer":
+        return {
+          footer_settings: footerSettings,
+          commerce_settings: commerceSettings,
+        };
+      default:
+        return {};
+    }
+  };
+
   const [activeTab, setActiveTab] = useState("general");
 
   const tabs = [
@@ -404,7 +495,6 @@ export default function SiteSettingsManager() {
           Configuración Web
         </h2>
 
-        {/* Navegación por Pestañas Horizontal */}
         <div className="flex items-center gap-1 sm:gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-md w-fit max-w-full overflow-x-auto no-scrollbar">
           {tabs.map((tab) => (
             <button
@@ -425,7 +515,6 @@ export default function SiteSettingsManager() {
         </div>
       </div>
 
-      {/* Contenido de las Secciones */}
       <div className="bg-white dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800 p-4 sm:p-8 shadow-sm">
         {activeTab === "general" && (
           <div className="space-y-8 sm:space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -435,7 +524,11 @@ export default function SiteSettingsManager() {
               </h3>
               <SiteIdentitySettings
                 siteName={siteName}
-                onSiteNameChange={setSiteName}
+                onSiteNameChange={handleNameChange}
+                tenantSlug={newTenantSlug}
+                nameChangeLimitReached={nameChangeLimitReached}
+                changesLeft={changesLeft}
+                isLoading={isLoadingIdentity}
               />
             </div>
 

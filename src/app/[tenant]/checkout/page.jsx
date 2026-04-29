@@ -16,6 +16,7 @@ import { PaymentFields } from "@/components/public/checkout/PaymentFields";
 import { OrderSummary } from "@/components/public/checkout/OrderSummary";
 import { SuccessInvoice } from "@/components/public/checkout/SuccessInvoice";
 import { ValidationWaitScreen } from "@/components/public/checkout/ValidationWaitScreen";
+import { ShippingMethodSelector } from "@/components/public/checkout/ShippingMethodSelector";
 import { HeaderTitle } from "@/components/public/checkout/UIElements";
 import { processCheckoutOrder } from "@/app/actions/public/checkoutActions";
 import { validateEntireForm } from "@/lib/checkoutValidation";
@@ -48,6 +49,7 @@ export default function CheckoutPage() {
     idNumber: "",
     phone: "",
     email: "",
+    shippingMethod: "delivery", // 'delivery' o 'pickup'
     paymentMethod: "",
     reference: "",
     notes: "",
@@ -103,8 +105,13 @@ export default function CheckoutPage() {
   const subtotal = getTotalPrice();
   const deliveryFee = Number(commerce.delivery_fee || 0);
   const threshold = Number(commerce.free_shipping_threshold || 50);
-  const isFreeShipping = subtotal >= threshold && threshold > 0;
-  const appliedDelivery = isFreeShipping ? 0 : deliveryFee;
+  const isFreeShipping =
+    formData.shippingMethod === "delivery" && subtotal >= threshold && threshold > 0;
+  
+  // Si es retiro en tienda, el costo de envío es 0
+  const appliedDelivery =
+    formData.shippingMethod === "pickup" || isFreeShipping ? 0 : deliveryFee;
+  
   const total = subtotal + appliedDelivery;
 
   const handleCustomerFound = (customer) => {
@@ -234,9 +241,18 @@ export default function CheckoutPage() {
           startTracking(tenant_slug, safeOrderId, orderCode);
         }
 
+        const shippingMethodLabel =
+          formData.shippingMethod === "pickup"
+            ? "RETIRO EN TIENDA 🛍️"
+            : isFreeShipping
+              ? "GRATIS ✨"
+              : `$${deliveryFee.toFixed(2)} 🚚`;
+
         const message = `Hola ${brand}! 👋
 
 He realizado un pago por ${selectedPaymentMethod}.
+
+📌 *MÉTODO DE ENTREGA*: ${formData.shippingMethod === "pickup" ? "Retiro en Tienda" : "Delivery"}
 
 📌 *DATOS DEL PAGO*
 - Titular: ${formData.name}
@@ -247,8 +263,8 @@ He realizado un pago por ${selectedPaymentMethod}.
 🛒 *PEDIDO ${orderIdShort}*
 ${orderDetails}
 
-💰 *TOTAL*: $${finalTotalCalculated.toFixed(2)}
-🚚 *ENVÍO*: ${shippingMethod}
+💰 *TOTAL*: $${total.toFixed(2)}
+🚚 *ENVÍO*: ${shippingMethodLabel}
 
 📝 *NOTAS*: ${formData.notes || "Ninguna"}
 
@@ -300,6 +316,17 @@ ${orderDetails}
                 <div className="space-y-12">
                   <div className="space-y-6">
                     <h2 className="text-sm font-black uppercase tracking-[0.2em] text-ink flex items-center gap-3">
+                      Método de Entrega
+                    </h2>
+                    <ShippingMethodSelector
+                      formData={formData}
+                      setFormData={setFormData}
+                      deliveryFee={deliveryFee}
+                    />
+                  </div>
+
+                  <div className="space-y-6">
+                    <h2 className="text-sm font-black uppercase tracking-[0.2em] text-ink flex items-center gap-3">
                       Información del Cliente
                     </h2>
                     <div className="bg-white p-6 md:p-8 rounded-md shadow-sm border border-zinc-100">
@@ -344,6 +371,7 @@ ${orderDetails}
                   threshold={threshold}
                   brandImageLabel={brandImageLabel}
                   onVerify={handleVerifyPayment}
+                  shippingMethod={formData.shippingMethod}
                 />
               </div>
             </div>

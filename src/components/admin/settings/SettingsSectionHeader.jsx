@@ -4,6 +4,7 @@ export default function SettingsSectionHeader({
   icon,
   title,
   description,
+  warning,
   action,
 }) {
   return (
@@ -16,6 +17,9 @@ export default function SettingsSectionHeader({
           </h3>
           <p className="text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest">
             {description}
+          </p>
+          <p className="text-amber-500 dark:text-amber-400 text-[8px] font-bold uppercase mt-2 tracking-widest">
+            {warning}
           </p>
         </div>
       </div>

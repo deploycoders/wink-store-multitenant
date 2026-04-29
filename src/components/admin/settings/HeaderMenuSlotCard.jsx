@@ -60,7 +60,7 @@ export default function HeaderMenuSlotCard({ slot, index, options, onChange }) {
           onChange={(e) => handleTargetChange(e.target.value)}
           className={inputClassName}
         >
-          <option value="none">Sin filtro (solo /products)</option>
+          <option value="none">Sin filtro (solo /items)</option>
           {options.map((option) => (
             <option
               key={`${option.target_type}:${option.id}`}

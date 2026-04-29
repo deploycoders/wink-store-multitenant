@@ -262,6 +262,12 @@ export async function processCheckoutOrder(formData, items, total) {
         }
 
         const currentVariantStock = Number(matchedVariant.stock_quantity) || 0;
+        
+        // SI ES ILIMITADO (>= 999999), NO DESCONTAMOS
+        if (currentVariantStock >= 999999) {
+          continue; 
+        }
+
         if (currentVariantStock < quantity) {
           throw new Error(
             `Stock insuficiente en ${productData.name} (Variante seleccionada). Disponible: ${currentVariantStock}.`,
@@ -303,6 +309,12 @@ export async function processCheckoutOrder(formData, items, total) {
           ? productData.product_stock[0]
           : productData.product_stock;
         const currentStock = stockObj ? Number(stockObj.quantity) : 0;
+
+        // SI ES ILIMITADO (>= 999999), NO DESCONTAMOS
+        if (currentStock >= 999999) {
+          continue;
+        }
+
         if (currentStock < quantity) {
           throw new Error(
             `Stock insuficiente para ${productData.name}. Disponible: ${currentStock}.`,

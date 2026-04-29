@@ -184,7 +184,9 @@ export default function AnimatedProducts({ products, categories }) {
                   <ProductCard
                     key={product.id}
                     product={product}
-                    index={index} // <-- Ahora sí, 'index' está definido y se pasa correctamente
+                    index={index}
+                    activeCategoryId={activeCategory}
+                    allCategories={categories}
                   />
                 </div>
               </motion.div>
