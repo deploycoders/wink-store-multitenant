@@ -17,7 +17,9 @@ const isPlatformAdminEmail = (email) => {
 const hasPlatformScopeInMetadata = (user) => {
   const scopeFromUserMetadata = user?.user_metadata?.access_scope;
   const scopeFromAppMetadata = user?.app_metadata?.access_scope;
-  return scopeFromUserMetadata === "platform" || scopeFromAppMetadata === "platform";
+  return (
+    scopeFromUserMetadata === "platform" || scopeFromAppMetadata === "platform"
+  );
 };
 
 export async function POST(req) {
@@ -34,14 +36,16 @@ export async function POST(req) {
   let res = NextResponse.next();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_SUPABASE_PUBLIC_ANON_KEY,
     {
       cookies: {
         getAll() {
           return req.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => req.cookies.set(name, value));
+          cookiesToSet.forEach(({ name, value }) =>
+            req.cookies.set(name, value),
+          );
           res = NextResponse.next();
           cookiesToSet.forEach(({ name, value, options }) =>
             res.cookies.set(name, value, options),
@@ -56,7 +60,8 @@ export async function POST(req) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   if (!hasPlatformScopeInMetadata(user) && !isPlatformAdminEmail(user.email)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -82,4 +87,3 @@ export async function POST(req) {
 
   return NextResponse.json({ counts });
 }
-

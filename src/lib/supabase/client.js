@@ -32,7 +32,7 @@ export function createAdminClient() {
 
   globalForSupabase.__supabaseAdminBrowserClient = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_SUPABASE_PUBLIC_ANON_KEY,
     { auth: { storageKey: ADMIN_STORAGE_KEY } },
   );
 
@@ -47,7 +47,7 @@ export function createPlatformClient() {
 
   globalForSupabase.__supabasePlatformBrowserClient = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_SUPABASE_PUBLIC_ANON_KEY,
     { auth: { storageKey: PLATFORM_STORAGE_KEY } },
   );
 

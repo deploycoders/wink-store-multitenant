@@ -40,7 +40,7 @@ npm run dev
 - La conexión está en `web/src/lib/supabase/client.js` (o similar según tu estructura)
 - Variables esperadas:
   - `NEXT_PUBLIC_SUPABASE_URL`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - `NEXT_SUPABASE_PUBLIC_ANON_KEY`
   - (opcional) `SUPABASE_SERVICE_ROLE_KEY` para server-side
 
 ## 🧩 Multitenancy

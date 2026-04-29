@@ -36,14 +36,14 @@ const normalizeProduct = (product) => {
 const getCachedAnonymousClient = () => {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_SUPABASE_PUBLIC_ANON_KEY,
     {
       global: {
         fetch: (url, options) => {
           return fetch(url, { ...options, next: { revalidate: 60 } });
         },
       },
-    }
+    },
   );
 };
 
@@ -58,7 +58,7 @@ export async function getProducts(tenantId = null, supabaseClient = null) {
     product_variants(*),
     product_stock(quantity),
     product_categories(category_id)
-`
+`,
     )
     .eq("status", "published");
 
@@ -86,7 +86,7 @@ export async function getHomeProducts(tenantId = null, supabaseClient = null) {
       product_variants(*),
       product_stock(quantity),
       product_categories(category_id)
-    `
+    `,
     )
     .eq("status", "published")
     .eq("featured", true)
@@ -106,12 +106,16 @@ export async function getHomeProducts(tenantId = null, supabaseClient = null) {
   return (products || []).map(normalizeProduct);
 }
 
-export async function getProductBySlug(slug, tenantId = null, supabaseClient = null) {
+export async function getProductBySlug(
+  slug,
+  tenantId = null,
+  supabaseClient = null,
+) {
   if (!slug) return null;
 
   const supabase = supabaseClient || getCachedAnonymousClient();
 
-    let query = supabase
+  let query = supabase
     .from("products")
     .select(
       `
@@ -119,7 +123,7 @@ export async function getProductBySlug(slug, tenantId = null, supabaseClient = n
       product_variants(*),
       product_stock(quantity),
       product_categories(category_id)
-    `
+    `,
     )
     .eq("slug", slug)
     .eq("status", "published");

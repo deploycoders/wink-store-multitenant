@@ -142,7 +142,7 @@ export async function middleware(req) {
   // 1. CREACIÓN GLOBAL DEL CLIENTE (Para que las Actions funcionen en cualquier ruta)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    process.env.NEXT_SUPABASE_PUBLIC_ANON_KEY,
     {
       cookies: {
         getAll: () => req.cookies.getAll(),
