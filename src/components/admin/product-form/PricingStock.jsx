@@ -108,35 +108,66 @@ const PricingStock = ({
 
         {/* Stock Total */}
         <div
-          className={`${cardBaseStyle} ${autoCalculated ? "bg-slate-50/50 dark:bg-slate-900/50 border-dashed" : "focus-within:border-slate-400"}`}
+          className={`${cardBaseStyle} ${autoCalculated || !formData.manage_stock ? "bg-slate-50/50 dark:bg-slate-900/50 border-dashed" : "focus-within:border-slate-400"}`}
         >
           <div className="flex items-center justify-between mb-2 md:mb-3">
             <label className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
               <div className="p-1 bg-slate-100 dark:bg-slate-800 rounded">
                 <Hash size={12} />
               </div>
-              Stock Total
+              Inventario
             </label>
-            {autoCalculated && <Lock size={10} className="text-slate-400" />}
+            <div className="flex items-center gap-2">
+              {!readOnly && !autoCalculated && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      manage_stock: !prev.manage_stock,
+                    }))
+                  }
+                  className={`text-[9px] font-black cursor-pointer px-2 py-0.5 rounded transition-all ${
+                    formData.manage_stock
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                      : "bg-slate-100 text-slate-400 dark:bg-slate-800"
+                  }`}
+                >
+                  {formData.manage_stock ? "SÍ" : "NO"}
+                </button>
+              )}
+              {autoCalculated && <Lock size={10} className="text-slate-400" />}
+            </div>
           </div>
-          <Input
-            required
-            type="number"
-            name="stock"
-            placeholder="0"
-            className={`h-10 border-slate-100 dark:border-slate-800 rounded-md font-bold text-lg px-3 transition-all no-spin ${
-              autoCalculated
-                ? "bg-transparent dark:text-slate-400 cursor-not-allowed border-none text-slate-500 shadow-none"
-                : "bg-slate-50/50 dark:bg-slate-950 dark:text-white focus-visible:ring-1 focus-visible:ring-slate-400 border-dashed"
-            }`}
-            value={autoCalculated ? effectiveStock : formData.stock}
-            onChange={handleChange}
-            disabled={readOnly || autoCalculated}
-          />
-          {autoCalculated && (
-            <p className="mt-2 text-[9px] leading-tight font-medium uppercase tracking-tighter text-slate-400 dark:text-slate-500 italic">
-              Calculado por variantes
-            </p>
+
+          {formData.manage_stock ? (
+            <>
+              <Input
+                required
+                type="number"
+                name="stock"
+                placeholder="0"
+                className={`h-10 border-slate-100 dark:border-slate-800 rounded-md font-bold text-lg px-3 transition-all no-spin ${
+                  autoCalculated
+                    ? "bg-transparent dark:text-slate-400 cursor-not-allowed border-none text-slate-500 shadow-none"
+                    : "bg-slate-50/50 dark:bg-slate-950 dark:text-white focus-visible:ring-1 focus-visible:ring-slate-400 border-dashed"
+                }`}
+                value={autoCalculated ? effectiveStock : formData.stock}
+                onChange={handleChange}
+                disabled={readOnly || autoCalculated}
+              />
+              {autoCalculated && (
+                <p className="mt-2 text-[9px] leading-tight font-medium uppercase tracking-tighter text-slate-400 dark:text-slate-500 italic">
+                  Calculado por variantes
+                </p>
+              )}
+            </>
+          ) : (
+            <div className="h-10 flex items-center px-3 bg-emerald-50/50 dark:bg-emerald-500/10 rounded-md border border-emerald-100/50 dark:border-emerald-500/20">
+              <span className="text-[8px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                Disponibilidad Ilimitada
+              </span>
+            </div>
           )}
         </div>
       </div>

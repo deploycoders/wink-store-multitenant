@@ -84,7 +84,8 @@ export async function getHomeProducts(tenantId = null, supabaseClient = null) {
       `
       *,
       product_variants(*),
-      product_stock(quantity)
+      product_stock(quantity),
+      product_categories(category_id)
     `
     )
     .eq("status", "published")
@@ -116,7 +117,8 @@ export async function getProductBySlug(slug, tenantId = null, supabaseClient = n
       `
       *,
       product_variants(*),
-      product_stock(quantity)
+      product_stock(quantity),
+      product_categories(category_id)
     `
     )
     .eq("slug", slug)

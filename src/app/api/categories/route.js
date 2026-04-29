@@ -87,7 +87,6 @@ export async function POST(request) {
       slug,
       parent_id,
       parent_ids,
-      image_url,
       store_type: storeTypeFromPayload,
       tenant_id: payloadTenantId,
     } = body;
@@ -155,7 +154,6 @@ export async function POST(request) {
           name,
           slug,
           parent_id: legacyParentId,
-          image_url: image_url || null,
           tenant_id: tenantId, // Usamos el ID validado por el contexto
           store_type: storeTypeToPersist,
         },

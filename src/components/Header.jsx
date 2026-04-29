@@ -74,7 +74,10 @@ export default function Header() {
           </div>
 
           {/* CENTRO: Navegación Desktop */}
-          <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center space-x-6 text-[12px] font-bold tracking-[0.2em] text-honey-dark">
+          <nav 
+            id="desktop-nav"
+            className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center space-x-6 text-[12px] font-bold tracking-[0.2em] text-honey-dark"
+          >
             {dynamicMenu.map((item) => (
               <button
                 key={item.id}

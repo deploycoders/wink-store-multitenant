@@ -43,8 +43,7 @@ const RolesManager = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const { tenant_id: tenantId } = useSiteConfig();
   const supabase = createClient();
-  const [tenantLimit, setTenantLimit] = useState(1);
-  const [tenantLimitLoading, setTenantLimitLoading] = useState(true);
+  
   const [effectiveTenantId, setEffectiveTenantId] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -69,8 +68,6 @@ const RolesManager = () => {
 
       const { data, error } = await staffQuery;
 
-      if (error) throw error;
-
       setStaff(data || []);
     } catch (error) {
       console.error("Error cargando staff:", error.message);
@@ -84,12 +81,10 @@ const RolesManager = () => {
       setCurrentUser(user);
     });
     (async () => {
-      setTenantLimitLoading(true);
       try {
         const { data: auth } = await supabase.auth.getUser();
         const user = auth?.user;
         if (!user?.id) {
-          setTenantLimitLoading(false);
           fetchStaff();
           return;
         }
@@ -102,36 +97,13 @@ const RolesManager = () => {
 
         const scopedTenantId = profile?.tenant_id ?? tenantId ?? null;
         setEffectiveTenantId(scopedTenantId);
-
-        if (scopedTenantId) {
-          const { data: tenantRow } = await supabase
-            .from("tenants")
-            .select("max_users, user_limit")
-            .eq("tenant_id", scopedTenantId)
-            .maybeSingle();
-          const limit = Number(
-            tenantRow?.max_users || tenantRow?.user_limit || 1,
-          );
-          setTenantLimit(limit);
-        } else {
-          setTenantLimit(1);
-        }
       } finally {
-        setTenantLimitLoading(false);
         fetchStaff();
       }
     })();
   }, []);
 
   const openCreateModal = () => {
-    if (staff.length >= tenantLimit) {
-      Swal.fire(
-        "Límite alcanzado",
-        `Tu plan permite hasta ${tenantLimit} usuario(s).`,
-        "info",
-      );
-      return;
-    }
     setEditingId(null);
     setIsResetMode(false);
     setFormData({
@@ -313,7 +285,7 @@ const RolesManager = () => {
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white">
             Roles y Acceso
           </h1>
@@ -321,23 +293,14 @@ const RolesManager = () => {
             Administración de permisos y personal de la plataforma.
           </p>
         </div>
-        {tenantLimitLoading || loading ? (
+        {loading ? (
           <button
             disabled
             className="flex items-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest cursor-not-allowed"
-            title="Validando límite del plan..."
+            title="Sincronizando..."
           >
             <Loader2 className="animate-spin" size={16} />
-            VALIDANDO...
-          </button>
-        ) : staff.length >= tenantLimit ? (
-          <button
-            disabled
-            className="flex items-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest cursor-not-allowed"
-            title={`Límite: ${tenantLimit} usuario(s)`}
-          >
-            <Plus size={16} />
-            LÍMITE ALCANZADO
+            CARGANDO...
           </button>
         ) : (
           <button

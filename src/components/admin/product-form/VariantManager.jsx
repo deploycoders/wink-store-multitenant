@@ -13,8 +13,11 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Swal from "sweetalert2";
 
 const VariantManager = ({ formData, setFormData, readOnly = false }) => {
+  const variantLimit = 999; // Unlimited
+
   const [attributeGroups, setAttributeGroups] = useState([
     { id: 1, name: "", values: "" },
   ]);
@@ -24,14 +27,13 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
 
   const totalStockSum = React.useMemo(() => {
     return variants.reduce((acc, v) => {
-      const val = Number(v.stock_quantity) || 0;
+      const val = Number(v.stock_adjustment ?? v.stock_quantity) || 0;
       return acc + val;
     }, 0);
   }, [variants]);
 
   useEffect(() => {
     if (variants.length > 0 && attributeGroups[0].name === "") {
-      // Lógica para extraer nombres de atributos y sus valores únicos de las variantes cargadas
       const firstVariant = variants[0].attributes;
       if (firstVariant) {
         const names = Object.keys(firstVariant);
@@ -90,7 +92,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
       return {
         attributes: combo,
         price_adjustment: 0,
-        stock_quantity: 0,
+        stock_adjustment: 0, // Cambiado a stock_adjustment para ser consistente con ProductForm
         sku: skuParts.join("-").toUpperCase(),
       };
     });
@@ -103,9 +105,12 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
 
     const newVariants = [...formData.variants];
 
-    if (field === "stock_quantity" || field === "price_adjustment") {
+    if (field === "stock_adjustment" || field === "stock_quantity" || field === "price_adjustment") {
       const numValue = value === "" ? 0 : Number(value);
+      // Actualizamos ambos por si acaso, pero preferimos stock_adjustment
       newVariants[idx][field] = numValue;
+      if (field === "stock_quantity") newVariants[idx].stock_adjustment = numValue;
+      if (field === "stock_adjustment") newVariants[idx].stock_quantity = numValue;
     } else {
       newVariants[idx][field] = value;
     }
@@ -246,11 +251,12 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                 type="button"
                 onClick={generateCombinations}
                 disabled={
-                  readOnly || attributeGroups.every((g) => !g.name || !g.values)
+                  readOnly ||
+                  attributeGroups.every((g) => !g.name || !g.values)
                 }
                 className="w-full h-14 bg-slate-600 cursor-pointer hover:bg-slate-700 text-white rounded-md font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-slate-200 dark:shadow-none transition-all gap-3"
               >
-                <RefreshCw size={18} className="animate-spin-slow" />
+                <RefreshCw size={18} />
                 Generar Matrix
               </Button>
             </div>
@@ -304,7 +310,6 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                   <tbody className="divide-y divide-slate-50 dark:divide-slate-800/50">
                     {variants.map((v, idx) => (
                       <React.Fragment key={idx}>
-                        {/* Fila principal: Variante | Stock | Precio */}
                         <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                           <td className="px-6 pt-5 pb-2">
                             <div className="flex gap-1.5 flex-wrap">
@@ -330,11 +335,11 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                               <input
                                 type="number"
                                 className="w-full pl-9 pr-3 h-10 bg-emerald-50 dark:bg-emerald-500/10 rounded-md text-xs font-black text-emerald-700 dark:text-emerald-400 outline-none focus:ring-2 focus:ring-emerald-500 transition-all border-none"
-                                value={v.stock_quantity || 0}
+                                value={v.stock_adjustment ?? v.stock_quantity ?? 0}
                                 onChange={(e) =>
                                   updateVariant(
                                     idx,
-                                    "stock_quantity",
+                                    "stock_adjustment",
                                     e.target.value,
                                   )
                                 }
@@ -364,7 +369,6 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                             </div>
                           </td>
                         </tr>
-                        {/* Sub-fila: Código Ref. siempre bloqueado, ancho completo */}
                         <tr className="bg-slate-50/50 dark:bg-slate-800/20 group">
                           <td colSpan={3} className="px-6 pb-4 pt-1">
                             <div className="flex items-center gap-2">
@@ -398,7 +402,7 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                   <div
                     key={idx}
                     className="bg-white dark:bg-slate-900 p-6 rounded-md
-                   border border-slate-100 dark:border-slate-800 shadow-lg space-y-6"
+                 border border-slate-100 dark:border-slate-800 shadow-lg space-y-6"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex gap-1.5 flex-wrap">
@@ -428,11 +432,11 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                           <input
                             type="number"
                             className="w-full pl-9 pr-3 h-12 bg-emerald-50 dark:bg-emerald-500/10 rounded-md text-xs font-black text-emerald-700 dark:text-emerald-400 outline-none border-none"
-                            value={v.stock_quantity || 0}
+                            value={v.stock_adjustment ?? v.stock_quantity ?? 0}
                             onChange={(e) =>
                               updateVariant(
                                 idx,
-                                "stock_quantity",
+                                "stock_adjustment",
                                 e.target.value,
                               )
                             }
@@ -441,34 +445,30 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                         </div>
                       </div>
                       <div className="space-y-2 group">
-                        {/* Label con mejor espaciado y alineación */}
                         <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1 flex items-center gap-1.5">
                           Precio (+/-)
                         </label>
-
                         <div className="relative">
                           <div className="relative group/input">
-                            {/* Icono más estilizado */}
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
                               <DollarSign
                                 size={14}
                                 className="text-slate-400 group-focus-within/input:text-slate-500 transition-colors duration-300"
                               />
                             </div>
-
                             <input
                               type="number"
                               className={`
-          w-full pl-10 pr-4 h-11
-          bg-white dark:bg-slate-900
-          rounded-md text-[11px] font-bold
-          text-slate-900 dark:text-white
-          outline-none border border-slate-200 dark:border-slate-700
-          hover:border-slate-300 dark:hover:border-slate-600
-          focus:border-slate-500/50 focus:ring-4 focus:ring-slate-500/10
-          transition-all duration-300 shadow-sm
-          ${readOnly ? "opacity-60 cursor-not-allowed bg-slate-50" : ""}
-        `}
+        w-full pl-10 pr-4 h-11
+        bg-white dark:bg-slate-900
+        rounded-md text-[11px] font-bold
+        text-slate-900 dark:text-white
+        outline-none border border-slate-200 dark:border-slate-700
+        hover:border-slate-300 dark:hover:border-slate-600
+        focus:border-slate-500/50 focus:ring-4 focus:ring-slate-500/10
+        transition-all duration-300 shadow-sm
+        ${readOnly ? "opacity-60 cursor-not-allowed bg-slate-50" : ""}
+      `}
                               placeholder="0.00"
                               value={v.price_adjustment}
                               onChange={(e) =>
@@ -480,14 +480,6 @@ const VariantManager = ({ formData, setFormData, readOnly = false }) => {
                               }
                               disabled={readOnly}
                             />
-                          </div>
-
-                          {/* Aviso con estilo de banner sutil */}
-                          <div className="mt-2.5 px-3 py-1.5 bg-amber-50/50 dark:bg-amber-500/5 rounded-xl border border-amber-100/50 dark:border-amber-500/10">
-                            <p className="text-[8px] font-bold uppercase tracking-tight text-amber-600/80 dark:text-amber-500/80 leading-relaxed">
-                              <span className="mr-1">💡</span>
-                              Este valor se suma al precio base del producto.
-                            </p>
                           </div>
                         </div>
                       </div>

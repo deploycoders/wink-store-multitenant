@@ -58,6 +58,7 @@ const ProductForm = ({
     featured: false,
     slug: "",
     variants: [],
+    manage_stock: true, // Por defecto manejamos stock
   });
 
   useEffect(() => {
@@ -82,6 +83,7 @@ const ProductForm = ({
             initialVariants,
             editingProduct.stock || 0,
           ),
+          manage_stock: editingProduct.manage_stock ?? (editingProduct.stock < 900000), // Si es muy alto, asumimos que no maneja stock
         });
       } else {
         resetForm();
@@ -110,6 +112,7 @@ const ProductForm = ({
       featured: false,
       slug: "",
       variants: [], // <-- SIEMPRE ARRAY VACÍO (Esto evita el error en VariantManager)
+      manage_stock: true,
     });
   };
 
@@ -240,8 +243,8 @@ const ProductForm = ({
     if (!formData.price || parseFloat(formData.price) <= 0)
       errors.push("El precio base debe ser mayor a 0");
 
-    // Si no hay variantes, el stock debe ser >= 0
-    if (formData.variants.length === 0) {
+    // Si no hay variantes y MANEJAMOS STOCK, el stock debe ser >= 0
+    if (formData.variants.length === 0 && formData.manage_stock) {
       if (formData.stock === "" || isNaN(formData.stock))
         errors.push("El stock es obligatorio para productos sin variantes");
     }
@@ -285,7 +288,12 @@ const ProductForm = ({
 
       // 3. CALCULAR STOCK TOTAL: Si hay variantes, sumamos sus stocks.
       // Si no hay variantes, usamos el stock general del formulario.
-      const totalStock = calculateTotalStock(cleanedVariants, formData.stock);
+      let totalStock = calculateTotalStock(cleanedVariants, formData.stock);
+
+      // Si NO manejamos stock (ej: restaurante), forzamos un valor infinito
+      if (!formData.manage_stock) {
+        totalStock = 999999;
+      }
 
       // 4. Filtrar URLs de blobs y combinar con las nuevas URLs reales de Cloudinary
       const finalImages = [

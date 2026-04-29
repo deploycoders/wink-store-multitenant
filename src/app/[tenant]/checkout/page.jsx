@@ -84,6 +84,8 @@ export default function CheckoutPage() {
     if (currentTracking?.orderId) {
       setOrderId(currentTracking.orderId);
       setIsWaiting(true);
+    } else {
+      setIsWaiting(false);
     }
     setIsPendingOrderRestored(true);
   }, [tenant_slug, trackings]);

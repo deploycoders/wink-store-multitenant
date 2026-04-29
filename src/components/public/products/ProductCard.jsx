@@ -16,8 +16,16 @@ export default function ProductCard({ product, index = 0 }) {
   const brand = site_name || DEFAULT_SITE_NAME;
   // CORRECCIÓN: Usamos 'name' y 'description' (o short_description si la creaste)
   // según la estructura de tu tabla en Supabase
-  const { name, price, discount_price, description, category, slug, images } =
-    product;
+  const {
+    name,
+    price,
+    discount_price,
+    description,
+    short_description,
+    category,
+    slug,
+    images,
+  } = product;
   const regularPrice = Number(price) || 0;
   const offerPrice = Number(discount_price) || 0;
   const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
@@ -83,7 +91,7 @@ export default function ProductCard({ product, index = 0 }) {
             </div>
           </div>
           <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-1 font-light italic">
-            {description || "Minimalist essential piece"}
+            {description || short_description}
           </p>
         </div>
       </Link>

@@ -103,7 +103,7 @@ export default function ProductFilters({
         </p>
         <div
           ref={scrollRef}
-          className="flex overflow-x-auto justify-center gap-2 md:gap-3 pb-4 no-scrollbar scroll-smooth mask-horizontal"
+          className="flex overflow-x-auto justify-start gap-2 md:gap-3 pb-4 no-scrollbar scroll-smooth px-4 md:px-0"
         >
           <button
             onClick={() => setActiveCategory("all")}

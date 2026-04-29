@@ -46,8 +46,14 @@ export function OrderSummary({
               <h4 className="text-[11px] font-black text-ink uppercase tracking-tight leading-tight mb-0.5 truncate">
                 {item.name}
               </h4>
-              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-                Talla: {item.variant} | Cant: {item.quantity}
+              <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                {item.variant && (
+                  <>
+                    <span className="text-ink/60">{item.variant}</span>
+                    <span className="opacity-30">|</span>
+                  </>
+                )}
+                <span>Cant: {item.quantity}</span>
               </p>
               <p className="text-[12px] font-bold text-ink mt-1">
                 ${(item.price * item.quantity).toFixed(2)}

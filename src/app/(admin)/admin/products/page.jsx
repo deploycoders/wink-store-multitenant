@@ -12,6 +12,7 @@ import {
   Square,
   Star,
   StarOff,
+  Lock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ProductForm from "@/components/admin/ProductForm";
@@ -106,7 +107,7 @@ export default function ProductsPage() {
       statusFilter === "Todos los estados" ||
       (statusFilter === "Publicados" && p.status === "published") ||
       (statusFilter === "Borradores" && p.status !== "published") ||
-      (statusFilter === "Stock bajo" && Number(p.stock) <= 5);
+      (statusFilter === "Stock bajo" && Number(p.stock) <= 5 && Number(p.stock) >= 0 && Number(p.stock) < 999999);
 
     return matchesSearch && matchesStatus;
   });
@@ -279,6 +280,8 @@ export default function ProductsPage() {
     filteredIds.length > 0 &&
     filteredIds.every((id) => selectedIds.includes(id));
 
+
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -292,12 +295,14 @@ export default function ProductsPage() {
         </div>
         <button
           onClick={handleCreate}
-          className="flex items-center gap-2 bg-slate-900 dark:bg-white dark:text-slate-900 text-white px-5 py-3 rounded-md hover:bg-slate-800 dark:hover:bg-slate-200 transition-all font-bold text-xs uppercase tracking-widest shadow-lg shadow-slate-200 dark:shadow-none cursor-pointer"
+          className="flex items-center gap-2 px-5 py-3 rounded-md transition-all font-bold text-xs uppercase tracking-widest shadow-lg bg-slate-900 dark:bg-white dark:text-slate-900 text-white hover:bg-slate-800 dark:hover:bg-slate-200 shadow-slate-200 dark:shadow-none cursor-pointer"
         >
           <Plus size={16} />
           Nuevo Producto
         </button>
       </header>
+
+
 
       {/* Filtros Estándar */}
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700/50 p-4 flex flex-col md:flex-row items-center gap-4">
@@ -512,10 +517,12 @@ export default function ProductsPage() {
                       <span
                         className={`text-xs font-black ${product.stock <= 5 ? "text-rose-500" : "text-slate-900 dark:text-white"}`}
                       >
-                        {product.stock}{" "}
-                        <span className="text-[9px] uppercase opacity-40">
-                          unds
-                        </span>
+                        {Number(product.stock) >= 999999 ? "Ilimitado" : product.stock}{" "}
+                        {Number(product.stock) < 999999 && (
+                          <span className="text-[9px] uppercase opacity-40">
+                            unds
+                          </span>
+                        )}
                       </span>
                       {product.stock <= 5 && (
                         <span className="text-[7px] font-black uppercase tracking-tighter text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-md inline-block">

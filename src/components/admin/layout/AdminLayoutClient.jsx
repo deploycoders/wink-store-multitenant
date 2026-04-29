@@ -142,41 +142,41 @@ export default function AdminLayoutClient({
       tenantId={initialProfile?.tenant_id ?? null}
       initialData={initialSiteConfig}
     >
-      <div className="flex min-h-screen bg-[#FBFBFB] dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-all duration-500">
-        <AdminHeader
-          isCollapsed={isCollapsed}
-          setIsMobileOpen={setIsMobileOpen}
-          toggleTheme={toggleTheme}
-          isDarkMode={isDarkMode}
-          userProfile={initialProfile}
-          userRole={initialRole}
-          pathname={pathname}
-        />
+        <div className="flex min-h-screen bg-[#FBFBFB] dark:bg-slate-950 text-slate-900 dark:text-slate-50 font-sans transition-all duration-500">
+          <AdminHeader
+            isCollapsed={isCollapsed}
+            setIsMobileOpen={setIsMobileOpen}
+            toggleTheme={toggleTheme}
+            isDarkMode={isDarkMode}
+            userProfile={initialProfile}
+            userRole={initialRole}
+            pathname={pathname}
+          />
 
-        <AdminMobileMenu
-          isMobileOpen={isMobileOpen}
-          setIsMobileOpen={setIsMobileOpen}
-        />
+          <AdminMobileMenu
+            isMobileOpen={isMobileOpen}
+            setIsMobileOpen={setIsMobileOpen}
+          />
 
-        <AdminSidebar
-          isCollapsed={isCollapsed}
-          toggleSidebar={toggleSidebar}
-          isMobileOpen={isMobileOpen}
-          setIsMobileOpen={setIsMobileOpen}
-          canAccess={canAccess}
-          handleLogout={handleLogout}
-        />
+          <AdminSidebar
+            isCollapsed={isCollapsed}
+            toggleSidebar={toggleSidebar}
+            isMobileOpen={isMobileOpen}
+            setIsMobileOpen={setIsMobileOpen}
+            canAccess={canAccess}
+            handleLogout={handleLogout}
+          />
 
-        <main
-          className={`
+          <main
+            className={`
             flex-1 p-4 lg:p-6 pt-24 lg:pt-28 transition-all duration-500
             ${isCollapsed ? "lg:ml-20" : "lg:ml-64"}
             ml-0 w-full max-w-full overflow-x-hidden
           `}
-        >
-          {children}
-        </main>
-      </div>
+          >
+            {children}
+          </main>
+        </div>
     </SiteConfigProvider>
   );
 }

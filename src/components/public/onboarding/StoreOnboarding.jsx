@@ -31,65 +31,68 @@ export default function StoreOnboarding() {
   }, []);
 
   const startTour = () => {
+    const isDesktop = window.innerWidth >= 1024;
+
+    const steps = [
+      // 1. Bienvenida (Sin elemento, centrado en pantalla)
+      {
+        popover: {
+          title: `¡Bienvenida a ${site_name}!`,
+          description: isDesktop 
+            ? "Descubre la experiencia premium que hemos diseñado para ti. Este breve recorrido te mostrará cómo navegar por nuestro catálogo exclusivo."
+            : "Te enseñamos cómo navegar y comprar en nuestra tienda de forma rápida.",
+          side: "bottom",
+          align: "center"
+        }
+      },
+      // 2. Menú de categorías (Diferente selector para Desktop/Mobile)
+      {
+        element: isDesktop ? "#desktop-nav" : "button[aria-label='Abrir menú']",
+        popover: {
+          title: "Colecciones Exclusivas",
+          description: isDesktop 
+            ? "Navega por nuestras categorías principales directamente desde aquí."
+            : "Desde aquí puedes explorar todas las categorías de la tienda.",
+          side: "bottom",
+          align: isDesktop ? "center" : "start"
+        }
+      },
+      // 3. Carrito
+      {
+        element: "button[aria-label='Abrir carrito']",
+        popover: {
+          title: "Tu Carrito",
+          description: "Tus productos favoritos se guardarán aquí mientras exploras.",
+          side: "bottom",
+          align: "end"
+        }
+      },
+      // 4. Seguimiento de Pedidos (Widget flotante)
+      {
+        element: ".fixed.bottom-6.right-6",
+        popover: {
+          title: "Tus Compras",
+          description: "Rastrea tus pedidos en tiempo real con este botón mágico.",
+          side: "top",
+          align: "center"
+        }
+      }
+    ];
+
     const driverObj = driver({
       showProgress: true,
       animate: true,
       allowClose: true,
-      opacity: 0.75,
+      opacity: 0.85,
       stagePadding: 10,
       nextBtnText: "Siguiente",
       prevBtnText: "Anterior",
-      doneBtnText: "¡Entendido!",
+      doneBtnText: "¡Empezar!",
       progressText: "Paso {{current}} de {{total}}",
       onDeselected: () => {
         localStorage.setItem("has_seen_tour_v2", "true");
       },
-      steps: [
-        {
-          popover: {
-            title: `¡Bienvenida a ${site_name}!`,
-            description: "Hemos preparado este recorrido rápido para que conozcas cómo navegar y comprar en nuestra tienda premium.",
-            side: "bottom",
-            align: "center"
-          }
-        },
-        {
-          element: "header nav, button[aria-label='Abrir menú']",
-          popover: {
-            title: "Menú de categorías",
-            description: "Desde aquí tienes acceso rápido a las colecciones de la tienda. Explora lo que ofrecemos y encuentra tu estilo.",
-            side: "bottom",
-            align: "center"
-          }
-        },
-        {
-          element: "button[aria-label='Abrir carrito']",
-          popover: {
-            title: "Tu Carrito",
-            description: "Aquí verás tus productos elegidos y podrás proceder al pago seguro de forma rápida.",
-            side: "bottom",
-            align: "end"
-          }
-        },
-        {
-          element: ".fixed.bottom-6.right-6",
-          popover: {
-            title: "Seguimiento de Pedidos",
-            description: "Este es el corazón del servicio al cliente. Púlsalo para rastrear tu orden en tiempo real una vez que hayas comprado.",
-            side: "top",
-            align: "center"
-          }
-        },
-        {
-          element: ".fixed.bottom-24.right-9",
-          popover: {
-            title: "¿Necesitas Ayuda?",
-            description: "Si alguna vez te sientes perdido o quieres repetir este tour, este botón estará siempre aquí para guiarte.",
-            side: "top",
-            align: "center"
-          }
-        }
-      ]
+      steps: steps
     });
 
     driverObj.drive();

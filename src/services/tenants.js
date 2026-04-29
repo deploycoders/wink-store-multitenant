@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/client";
 export const PLAN_LIMITS = {
   Bronze: 1,
   Silver: 3,
-  Gold: 5,
+  Gold: 10,
 };
 
 export const normalizePlanType = (value) => {
@@ -116,10 +116,15 @@ export async function createTenant(tenantData) {
   const supabase = createClient();
 
   // 1. Mapeamos los datos para que coincidan con las columnas de tu SQL
+  const planType = normalizePlanType(tenantData.plan);
+  const maxUsers = getUserLimitForPlan(planType);
+
   const payload = {
     name: tenantData.name,
     slug: tenantData.slug,
-    plan_type: tenantData.plan || "Bronze",
+    plan_type: planType,
+    max_users: maxUsers,
+    user_limit: maxUsers,
     whatsapp_number: tenantData.whatsapp_number || null,
     status: "Active",
   };

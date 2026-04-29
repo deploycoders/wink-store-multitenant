@@ -8,8 +8,10 @@ import {
   Share2,
   Star,
   Search,
+  Lock,
 } from "lucide-react";
 import { CLOUDINARY_CONFIG } from "./config";
+import Swal from "sweetalert2";
 
 const MediaAndStatus = ({
   formData,
@@ -22,6 +24,11 @@ const MediaAndStatus = ({
   readOnly = false,
 }) => {
   const [categorySearch, setCategorySearch] = useState("");
+
+  const imageLimit = 999; // Unlimited
+  const currentImages = formData.images?.length || 0;
+  const categoryLimit = 999; // Unlimited
+  const currentCategories = formData.category_ids?.length || 0;
 
   const flatCategories = useMemo(() => {
     if (!Array.isArray(categories)) return [];
@@ -71,9 +78,14 @@ const MediaAndStatus = ({
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 delay-300">
       {/* Galería de Fotos */}
       <div className="space-y-4">
-        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 ml-1 flex items-center gap-2">
-          <Upload size={12} /> Galería de Fotos
-        </label>
+        <div className="flex items-center justify-between ml-1">
+          <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-2">
+            <Upload size={12} /> Galería de Fotos
+          </label>
+          <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">
+            {currentImages} {currentImages === 1 ? "Imagen" : "Imágenes"}
+          </span>
+        </div>
         <div className="grid grid-cols-3 gap-3">
           {(formData.images || []).map((img, idx) => (
             <div
@@ -98,10 +110,22 @@ const MediaAndStatus = ({
           ))}
           {!readOnly && (
             <label
-              className={`aspect-square rounded-md border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-1 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600 transition-all ${uploading ? "pointer-events-none opacity-50" : ""}`}
+              className={`aspect-square rounded-md border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-all ${
+                uploading
+                  ? "pointer-events-none opacity-50 bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800"
+                  : "cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
+              }`}
+              title="Añadir imagen"
             >
               {uploading ? (
                 <Loader2 size={20} className="animate-spin text-slate-400" />
+              ) : currentImages >= imageLimit ? (
+                <>
+                  <Lock size={18} className="text-slate-300" />
+                  <span className="text-[8px] font-black uppercase text-slate-300">
+                    Lleno
+                  </span>
+                </>
               ) : (
                 <>
                   <Upload
@@ -128,9 +152,14 @@ const MediaAndStatus = ({
       {/* Categorización */}
       <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-md space-y-4 border border-slate-100 dark:border-slate-700/50">
         <div className="space-y-3">
-          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
-            <Tag size={12} /> Categorías (Multi-selección)
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-2">
+              <Tag size={12} /> Categorías (Multi-selección)
+            </label>
+            <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">
+              {currentCategories} Seleccionada(s)
+            </span>
+          </div>
 
           <div className="flex flex-col gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
@@ -174,9 +203,11 @@ const MediaAndStatus = ({
                       <button
                         key={cat.id}
                         type="button"
-                        onClick={() =>
-                          !readOnly && handleCategoryChange(cat.id)
-                        }
+                        onClick={() => {
+                          if (readOnly) return;
+
+                          handleCategoryChange(cat.id);
+                        }}
                         className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all border ${
                           isSelected
                             ? "bg-slate-900 dark:bg-white border-slate-900 dark:border-white text-white dark:text-slate-900 shadow-lg scale-105"

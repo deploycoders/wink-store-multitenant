@@ -82,7 +82,7 @@ export default async function TenantSelectorPage() {
           <h1 className="font-serif uppercase text-4xl md:text-5xl font-black tracking-tight text-slate-900">
             Encuentra tu tienda ideal
           </h1>
-          <p className="text-sm md:text-lg text-slate-500 italic">
+          <p className="text-sm md:text-lg text-slate-900 italic">
             {HERO_COPY}
           </p>
         </div>

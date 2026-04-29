@@ -559,7 +559,7 @@ export default function CategoriesPage() {
                   <input
                     value={newCategorySlug}
                     readOnly
-                    placeholder="ej: rosas"
+                    placeholder="slug-categoria"
                     className="w-full px-4 py-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-slate-900 dark:focus:border-white outline-none font-black text-sm transition-all"
                   />
                   <p className="text-[10px] text-slate-400 font-bold">
@@ -582,7 +582,7 @@ export default function CategoriesPage() {
                     setNewCategoryName(next);
                     setNewCategorySlug(slugify(next));
                   }}
-                  placeholder="ej: Ramos de rosas"
+                  placeholder="Ropa, Comida, Tecnología, etc..."
                   className="w-full px-4 py-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border-2 border-slate-100 dark:border-slate-700 rounded-2xl focus:border-slate-900 dark:focus:border-white outline-none font-black text-sm transition-all"
                 />
                 <div className="flex gap-1 mt-2">
