@@ -14,9 +14,12 @@ export function SuccessInvoice({
   orderId,
   orderNumber,
 }) {
-  const { site_name, tenant_slug } = useSiteConfig();
+    const { site_name, tenant_slug, commerce_settings, exchange_rates } = useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
+  
+  const currencySymbol = commerce_settings?.currency_symbol || "$";
+  const targetCurrency = commerce_settings?.currency_code || "USD";
 
   const orderCode = useMemo(() => {
     if (orderNumber) return String(orderNumber).padStart(5, "0");
@@ -49,6 +52,9 @@ export function SuccessInvoice({
         orderCode={orderCode}
         brand={brand}
         issueDate={issueDate}
+        currencySymbol={currencySymbol}
+        targetCurrency={targetCurrency}
+        exchangeRates={exchange_rates}
       />
     );
 

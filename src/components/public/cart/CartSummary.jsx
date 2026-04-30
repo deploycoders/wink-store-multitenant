@@ -4,18 +4,29 @@ import { normalizeCommerceSettings } from "@/lib/siteConfig";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { convertPrice } from "@/services/exchangeRates";
 
 export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
-  const { commerce_settings, tenant_slug } = useSiteConfig();
+  const { commerce_settings, tenant_slug, exchange_rates } = useSiteConfig();
   const commerce = normalizeCommerceSettings(commerce_settings);
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
+  const currencySymbol = commerce?.currency_symbol || "$";
+  const targetCurrency = commerce?.currency_code || "USD";
 
   const deliveryFee = Number(commerce.delivery_fee || 0);
   const threshold = Number(commerce.free_shipping_threshold || 50);
 
+  // Lógica de envío gratuito (comparamos en moneda base USD para consistencia)
   const isFree = subtotal >= threshold && threshold > 0;
-  const appliedDelivery = isFree ? 0 : deliveryFee;
-  const total = subtotal - discount + appliedDelivery;
+  
+  // Conversiones para mostrar
+  const subtotalConverted = convertPrice(subtotal, "USD", targetCurrency, exchange_rates);
+  const discountConverted = convertPrice(discount, "USD", targetCurrency, exchange_rates);
+  const deliveryFeeConverted = convertPrice(deliveryFee, "USD", targetCurrency, exchange_rates);
+  const thresholdConverted = convertPrice(threshold, "USD", targetCurrency, exchange_rates);
+  
+  const appliedDelivery = isFree ? 0 : deliveryFeeConverted;
+  const totalConverted = subtotalConverted - discountConverted + appliedDelivery;
 
   return (
     <div className="border border-honey-light/50 rounded-4xl p-6 md:p-8 shadow-2xl shadow-ink/5 sticky top-24 bg-white/50 backdrop-blur-sm">
@@ -29,7 +40,9 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
           <span className="text-honey-dark uppercase tracking-widest font-bold">
             Subtotal
           </span>
-          <span className="font-bold text-ink">${subtotal.toFixed(2)}</span>
+          <span className="font-bold text-ink">
+            {currencySymbol}{subtotalConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+          </span>
         </div>
 
         {discount > 0 && (
@@ -38,7 +51,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
               Descuento
             </span>
             <span className="font-bold text-red-500">
-              -${discount.toFixed(2)}
+              -{currencySymbol}{discountConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
         )}
@@ -56,7 +69,7 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
             {isFree
               ? "Gratuito"
               : deliveryFee > 0
-                ? `$${deliveryFee.toFixed(2)}`
+                ? `${currencySymbol}${deliveryFeeConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
                 : "Cobro en destino"}
           </span>
         </div>
@@ -67,14 +80,14 @@ export default function CartSummary({ totalItems, subtotal, discount = 0 }) {
               Total
             </span>
             <span className="text-3xl font-serif font-bold text-ink">
-              ${total.toFixed(2)}
+              {currencySymbol}{totalConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
           </div>
           {threshold > 0 && (
             <p className="text-[9px] text-honey-dark italic font-medium text-center mt-2">
               {isFree
                 ? "✨ ¡Envío gratuito aplicado!"
-                : `* Envío gratuito en compras mayores a $${threshold}`}
+                : `* Envío gratuito en compras mayores a ${currencySymbol}${thresholdConverted.toLocaleString(undefined, { minimumFractionDigits: 0 })}`}
             </p>
           )}
         </div>

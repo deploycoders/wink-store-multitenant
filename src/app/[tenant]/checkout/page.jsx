@@ -27,9 +27,10 @@ import {
   normalizeCommerceSettings,
   normalizeWhatsappNumber,
 } from "@/lib/siteConfig";
+import { convertPrice } from "@/services/exchangeRates";
 
 export default function CheckoutPage() {
-  const { tenant_slug, site_name, commerce_settings, tenant_id } =
+  const { tenant_slug, site_name, commerce_settings, tenant_id, exchange_rates } =
     useSiteConfig();
   const { items, getTotalPrice, clearCart } = useTenantCart(tenant_slug);
   const [mounted, setMounted] = useState(
@@ -68,6 +69,9 @@ export default function CheckoutPage() {
   const brandImageLabel = brand.replace(/\s+/g, "+");
   const selectedPaymentMethod =
     formData.paymentMethod || activePaymentMethods[0] || "";
+  
+  const currencySymbol = commerce?.currency_symbol || "$";
+  const targetCurrency = commerce?.currency_code || "USD";
 
   useEffect(() => {
     const unsubscribe = useCartStore.persist?.onFinishHydration?.(() =>
@@ -113,6 +117,10 @@ export default function CheckoutPage() {
     formData.shippingMethod === "pickup" || isFreeShipping ? 0 : deliveryFee;
   
   const total = subtotal + appliedDelivery;
+
+  // Realizamos las conversiones de los totales
+  const totalConverted = convertPrice(total, "USD", targetCurrency, exchange_rates);
+  const deliveryFeeConverted = convertPrice(deliveryFee, "USD", targetCurrency, exchange_rates);
 
   const handleCustomerFound = (customer) => {
     setFormData((prev) => ({
@@ -185,6 +193,7 @@ export default function CheckoutPage() {
           tenantId: tenant_id || null,
           tenantSlug: tenant_slug || null,
         };
+        // Nota: Guardamos 'total' (en USD) en la base de datos para mantener consistencia financiera
         const response = await processCheckoutOrder(payload, items, total);
 
         if (!response.success) {
@@ -201,29 +210,13 @@ export default function CheckoutPage() {
           return;
         }
 
-        const deliveryFee = Number(commerce.delivery_fee || 0);
-        const threshold = Number(commerce.free_shipping_threshold || 50);
-        const isFreeShipping = subtotal >= threshold && threshold > 0;
-        const appliedDelivery = isFreeShipping ? 0 : deliveryFee;
-        const finalTotalCalculated = subtotal + appliedDelivery;
-
-        let shippingMethod = "COBRO EN DESTINO 🚚";
-        if (isFreeShipping) {
-          shippingMethod = "GRATIS ✨";
-        } else if (deliveryFee > 0) {
-          shippingMethod = `$${deliveryFee.toFixed(2)} 🚚`;
-        }
-
-        // CORRECCIÓN: Cambiamos item.title por item.name
         const orderDetails = items
           .map(
             (item) =>
-              `- ${item.name} (Talla: ${item.variant}) x${item.quantity}`,
+              `- ${item.name} (Variante: ${item.variant || "Única"}) x${item.quantity}`,
           )
           .join("\n");
 
-        // Añadimos el ID de orden (si ya lo tienes de la respuesta de Supabase)
-        // y el mensaje final para la foto
         const safeOrderId =
           response?.orderId !== undefined && response?.orderId !== null
             ? String(response.orderId)
@@ -246,7 +239,7 @@ export default function CheckoutPage() {
             ? "RETIRO EN TIENDA 🛍️"
             : isFreeShipping
               ? "GRATIS ✨"
-              : `$${deliveryFee.toFixed(2)} 🚚`;
+              : `${currencySymbol}${deliveryFeeConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })} 🚚`;
 
         const message = `Hola ${brand}! 👋
 
@@ -263,7 +256,7 @@ He realizado un pago por ${selectedPaymentMethod}.
 🛒 *PEDIDO ${orderIdShort}*
 ${orderDetails}
 
-💰 *TOTAL*: $${total.toFixed(2)}
+💰 *TOTAL*: ${currencySymbol}${totalConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
 🚚 *ENVÍO*: ${shippingMethodLabel}
 
 📝 *NOTAS*: ${formData.notes || "Ninguna"}
@@ -279,7 +272,8 @@ ${orderDetails}
         if (whatsappHref) window.open(whatsappHref, "_blank");
 
         if (response.success) {
-          setFinalTotal(finalTotalCalculated);
+          // Pasamos el total ya convertido para la UI de éxito
+          setFinalTotal(totalConverted);
           setOrderId(safeOrderId);
           setOrderNumber(safeOrderNumber);
           setPurchasedItems([...items]);

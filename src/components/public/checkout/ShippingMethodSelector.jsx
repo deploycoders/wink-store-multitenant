@@ -2,13 +2,26 @@
 
 import React from "react";
 import { Truck, Store } from "lucide-react";
+import { useSiteConfig } from "@/context/SiteConfigContext";
+import { convertPrice } from "@/services/exchangeRates";
 
 export function ShippingMethodSelector({ formData, setFormData, deliveryFee }) {
+  const { commerce_settings, exchange_rates } = useSiteConfig();
+  const currencySymbol = commerce_settings?.currency_symbol || "$";
+  const targetCurrency = commerce_settings?.currency_code || "USD";
+
+  const deliveryFeeConverted = convertPrice(
+    Number(deliveryFee) || 0,
+    "USD",
+    targetCurrency,
+    exchange_rates
+  );
+
   const methods = [
     {
       id: "delivery",
       label: "Envío a Domicilio",
-      description: `Te lo llevamos a casa por $${Number(deliveryFee).toFixed(2)}`,
+      description: `Te lo llevamos a casa por ${currencySymbol}${deliveryFeeConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       icon: <Truck className="w-5 h-5" />,
     },
     {

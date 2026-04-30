@@ -17,15 +17,18 @@ import { ShoppingBag, ArrowRight } from "lucide-react";
 import Swal from "sweetalert2";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import { DEFAULT_SITE_NAME } from "@/lib/siteConfig";
+import { convertPrice } from "@/services/exchangeRates";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
 export default function QuickAddSheet({ product, open, onClose }) {
-  const { site_name, tenant_slug } = useSiteConfig();
+  const { site_name, tenant_slug, commerce_settings, exchange_rates } = useSiteConfig();
   const [selectedAttrs, setSelectedAttrs] = useState({});
   const { addItem } = useTenantCart(tenant_slug);
   const router = useRouter();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
+  const currencySymbol = commerce_settings?.currency_symbol || "$";
+  const targetCurrency = commerce_settings?.currency_code || "USD";
 
   if (!product) return null;
 
@@ -37,6 +40,7 @@ export default function QuickAddSheet({ product, open, onClose }) {
     images,
     product_variants,
     slug,
+    base_currency = "USD",
   } = product;
 
   const attributeGroups = useMemo(() => {
@@ -82,15 +86,19 @@ export default function QuickAddSheet({ product, open, onClose }) {
   const allAttrsSelected =
     !hasVariants || attributeKeys.every((k) => selectedAttrs[k]);
 
-  const regularPrice = Number(price) || 0;
-  const offerPrice = Number(discount_price) || 0;
-  const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
-  const basePrice = hasActiveOffer ? offerPrice : regularPrice;
-  const priceAdjustment = Number(
+  const rawRegularPrice = Number(price) || 0;
+  const rawOfferPrice = Number(discount_price) || 0;
+  const hasActiveOffer = rawOfferPrice > 0 && rawOfferPrice < rawRegularPrice;
+  const rawBasePrice = hasActiveOffer ? rawOfferPrice : rawRegularPrice;
+  const rawPriceAdjustment = Number(
     selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0
   );
-  const finalPrice = basePrice + priceAdjustment;
-  const finalRegularPrice = regularPrice + priceAdjustment;
+
+  // Convertimos los precios
+  const finalPrice = convertPrice(rawBasePrice + rawPriceAdjustment, base_currency, targetCurrency, exchange_rates);
+  const finalRegularPrice = convertPrice(rawRegularPrice + rawPriceAdjustment, base_currency, targetCurrency, exchange_rates);
+  const displayAdjustment = convertPrice(rawPriceAdjustment, base_currency, targetCurrency, exchange_rates);
+
   const imageUrl = images?.[0] || "/placeholder.jpg";
 
   useEffect(() => {
@@ -183,17 +191,17 @@ export default function QuickAddSheet({ product, open, onClose }) {
             <div className="flex items-end gap-2">
               {hasActiveOffer && (
                 <p className="text-[11px] font-semibold text-red-500 line-through">
-                  ${finalRegularPrice.toFixed(2)}
+                  {currencySymbol}{finalRegularPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
               )}
               <p className="text-lg font-bold text-black">
-                ${finalPrice.toFixed(2)}
+                {currencySymbol}{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
             </div>
 
-            {priceAdjustment > 0 && (
+            {rawPriceAdjustment > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold">
-                +${priceAdjustment.toFixed(2)} de recargo por combinación.
+                +{currencySymbol}{displayAdjustment.toLocaleString(undefined, { minimumFractionDigits: 2 })} de recargo por combinación.
               </p>
             )}
 

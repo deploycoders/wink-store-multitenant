@@ -21,13 +21,17 @@ import {
 } from "@/lib/siteConfig";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
+import { convertPrice } from "@/services/exchangeRates";
+
 export default function ProductView({ product }) {
-  const { site_name, commerce_settings, tenant_slug } = useSiteConfig();
+  const { site_name, commerce_settings, tenant_slug, exchange_rates } = useSiteConfig();
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
   const brand = site_name || DEFAULT_SITE_NAME;
   const commerce = normalizeCommerceSettings(
     commerce_settings || DEFAULT_COMMERCE_SETTINGS,
   );
+  const currencySymbol = commerce?.currency_symbol || "$";
+  const targetCurrency = commerce?.currency_code || "USD";
   const productNotices = (commerce.product_notices || [])
     .filter(Boolean)
     .slice(0, 3);
@@ -40,6 +44,7 @@ export default function ProductView({ product }) {
     discount_price,
     images,
     product_variants,
+    base_currency = "USD",
   } = product;
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -98,15 +103,17 @@ export default function ProductView({ product }) {
   // ----------------------------------------------------------------
   // PRECIOS
   // ----------------------------------------------------------------
-  const regularPrice = Number(price) || 0;
-  const offerPrice = Number(discount_price) || 0;
-  const hasActiveOffer = offerPrice > 0 && offerPrice < regularPrice;
-  const basePrice = hasActiveOffer ? offerPrice : regularPrice;
-  const priceOverride = Number(
+  const rawRegularPrice = Number(price) || 0;
+  const rawOfferPrice = Number(discount_price) || 0;
+  const hasActiveOffer = rawOfferPrice > 0 && rawOfferPrice < rawRegularPrice;
+  const rawBasePrice = hasActiveOffer ? rawOfferPrice : rawRegularPrice;
+  const rawPriceOverride = Number(
     selectedVariant?.price_override ?? selectedVariant?.price_adjustment ?? 0,
   );
-  const finalPrice = basePrice + priceOverride;
-  const finalRegularPrice = regularPrice + priceOverride;
+
+  const finalPrice = convertPrice(rawBasePrice + rawPriceOverride, base_currency, targetCurrency, exchange_rates);
+  const finalRegularPrice = convertPrice(rawRegularPrice + rawPriceOverride, base_currency, targetCurrency, exchange_rates);
+  const displayOverride = convertPrice(rawPriceOverride, base_currency, targetCurrency, exchange_rates);
 
   const productImages = Array.isArray(images) ? images : ["/placeholder.jpg"];
 
@@ -187,17 +194,17 @@ export default function ProductView({ product }) {
             <div className="mt-2 flex items-end gap-3">
               {hasActiveOffer && (
                 <p className="text-sm font-semibold text-red-500 line-through">
-                  ${finalRegularPrice.toFixed(2)}
+                  {currencySymbol}{finalRegularPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </p>
               )}
               <p className="text-3xl font-bold text-black">
-                ${finalPrice.toFixed(2)}
+                {currencySymbol}{finalPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
             </div>
-            {priceOverride > 0 && (
+            {rawPriceOverride > 0 && (
               <p className="mt-1 text-xs font-medium text-amber-700">
-                Esta combinación tiene un recargo de +$
-                {priceOverride.toFixed(2)}.
+                Esta combinación tiene un recargo de +{currencySymbol}
+                {displayOverride.toLocaleString(undefined, { minimumFractionDigits: 2 })}.
               </p>
             )}
             {hasActiveOffer && (

@@ -19,10 +19,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSiteConfig } from "@/context/SiteConfigContext";
 import AdaptiveImage from "@/components/ui/AdaptiveImage";
 
+import { convertPrice } from "@/services/exchangeRates";
+
 export default function MiniCart({ open, setOpen }) {
-  const { tenant_slug } = useSiteConfig();
+  const { tenant_slug, commerce_settings, exchange_rates } = useSiteConfig();
   const { items, removeItem, updateQuantity, getTotalPrice } = useTenantCart(tenant_slug);
   const baseUrl = tenant_slug ? `/${tenant_slug}` : "";
+  const currencySymbol = commerce_settings?.currency_symbol || "$";
+  const targetCurrency = commerce_settings?.currency_code || "USD";
 
   const [mounted, setMounted] = useState(
     () => useCartStore.persist?.hasHydrated?.() ?? true,
@@ -39,6 +43,9 @@ export default function MiniCart({ open, setOpen }) {
   }, []);
 
   if (!mounted) return null;
+
+  // Calculamos el subtotal convertido
+  const subtotal = convertPrice(getTotalPrice(), "USD", targetCurrency, exchange_rates);
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -75,102 +82,118 @@ export default function MiniCart({ open, setOpen }) {
                 </SheetClose>
               </motion.div>
             ) : (
-              items.map((item) => (
-                <motion.div
-                  key={`${item.id}-${item.variant}`}
-                  layout
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  className="flex gap-4"
-                >
-                  {/* Imagen - Usa el array de strings de Supabase */}
-                  <div className="relative w-20 h-24 bg-secondary rounded-lg overflow-hidden shrink-0 border border-honey-light">
-                    <AdaptiveImage
-                      src={item.images?.[0] || "/placeholder.jpg"}
-                      alt={item.name || "Producto"}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
+              items.map((item) => {
+                const itemBaseCurrency = item.base_currency || "USD";
+                const itemPriceConverted = convertPrice(
+                  (Number(item.price) || 0) + (Number(item.price_adjustment) || 0),
+                  itemBaseCurrency,
+                  targetCurrency,
+                  exchange_rates
+                );
+                const adjustmentConverted = convertPrice(
+                  Number(item.price_adjustment) || 0,
+                  itemBaseCurrency,
+                  targetCurrency,
+                  exchange_rates
+                );
 
-                  {/* Información del Producto */}
-                  <div className="flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start">
-                        <h4 className="text-[13px] font-bold uppercase tracking-tight text-ink line-clamp-1">
-                          {item.name}
-                        </h4>
-                        <button
-                          onClick={() => removeItem(item.id, item.variant)}
-                          className="text-honey-dark hover:text-ink transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-
-                      {/* Variante (Talla) */}
-                      {item.variant && (
-                        <p className="text-[10px] text-honey-dark font-bold uppercase tracking-widest mt-1">
-                          Talla:{" "}
-                          <span className="text-ink">{item.variant}</span>
-                        </p>
-                      )}
-
-                      {/* Breve descripción para dar contexto visual */}
-                      {item.short_description && (
-                        <p className="text-[11px] text-honey-dark/70 line-clamp-1 mt-0.5">
-                          {item.short_description}
-                        </p>
-                      )}
-
-                      <span className="text-[13px] font-bold text-ink mt-1 block">
-                        ${Number(item.price).toFixed(2)}
-                      </span>
-                      {Number(item.price_adjustment) > 0 && (
-                        <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                          +${Number(item.price_adjustment).toFixed(2)} por
-                          variante
-                        </p>
-                      )}
+                return (
+                  <motion.div
+                    key={`${item.id}-${item.variant}`}
+                    layout
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex gap-4"
+                  >
+                    {/* Imagen - Usa el array de strings de Supabase */}
+                    <div className="relative w-20 h-24 bg-secondary rounded-lg overflow-hidden shrink-0 border border-honey-light">
+                      <AdaptiveImage
+                        src={item.images?.[0] || "/placeholder.jpg"}
+                        alt={item.name || "Producto"}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
 
-                    {/* Selector de Cantidad */}
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center border border-honey-light rounded-full p-0.5">
-                        <button
-                          disabled={item.quantity <= 1}
-                          onClick={() =>
-                            updateQuantity(
-                              item.id,
-                              item.quantity - 1,
-                              item.variant,
-                            )
-                          }
-                          className="p-1 px-2 text-honey-dark hover:text-ink disabled:opacity-30"
-                        >
-                          <Minus size={12} />
-                        </button>
-                        <span className="text-[11px] font-bold w-6 text-center">
-                          {item.quantity}
+                    {/* Información del Producto */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <h4 className="text-[13px] font-bold uppercase tracking-tight text-ink line-clamp-1">
+                            {item.name}
+                          </h4>
+                          <button
+                            onClick={() => removeItem(item.id, item.variant)}
+                            className="text-honey-dark hover:text-ink transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+
+                        {/* Variante (Talla) */}
+                        {item.variant && (
+                          <p className="text-[10px] text-honey-dark font-bold uppercase tracking-widest mt-1">
+                            Variante:{" "}
+                            <span className="text-ink">{item.variant}</span>
+                          </p>
+                        )}
+
+                        {/* Breve descripción para dar contexto visual */}
+                        {item.short_description && (
+                          <p className="text-[11px] text-honey-dark/70 line-clamp-1 mt-0.5">
+                            {item.short_description}
+                          </p>
+                        )}
+
+                        <span className="text-[13px] font-bold text-ink mt-1 block">
+                          {currencySymbol}{itemPriceConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </span>
-                        <button
-                          onClick={() =>
-                            updateQuantity(
-                              item.id,
-                              item.quantity + 1,
-                              item.variant,
-                            )
-                          }
-                          className="p-1 px-2 text-honey-dark hover:text-ink"
-                        >
-                          <Plus size={12} />
-                        </button>
+                        {adjustmentConverted > 0 && (
+                          <p className="text-[10px] text-amber-700 font-semibold mt-1">
+                            +{currencySymbol}{adjustmentConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })} por
+                            variante
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Selector de Cantidad */}
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center border border-honey-light rounded-full p-0.5">
+                          <button
+                            disabled={item.quantity <= 1}
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                item.quantity - 1,
+                                item.variant,
+                              )
+                            }
+                            className="p-1 px-2 text-honey-dark hover:text-ink disabled:opacity-30"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span className="text-[11px] font-bold w-6 text-center">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() =>
+                              updateQuantity(
+                                item.id,
+                                item.quantity + 1,
+                                item.variant,
+                              )
+                            }
+                            className="p-1 px-2 text-honey-dark hover:text-ink"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))
+                  </motion.div>
+                );
+              })
             )}
           </AnimatePresence>
         </div>
@@ -184,7 +207,7 @@ export default function MiniCart({ open, setOpen }) {
                   Subtotal
                 </span>
                 <span className="font-bold text-ink">
-                  ${getTotalPrice().toFixed(2)}
+                  {currencySymbol}{subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>

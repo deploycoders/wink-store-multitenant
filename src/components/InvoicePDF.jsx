@@ -77,6 +77,8 @@ const styles = StyleSheet.create({
   policyText: { fontSize: 8, color: "#666", lineHeight: 1.4 },
 });
 
+import { convertPrice } from "@/services/exchangeRates";
+
 export const InvoicePDF = ({
   formData,
   finalTotal,
@@ -84,6 +86,9 @@ export const InvoicePDF = ({
   orderCode,
   brand,
   issueDate,
+  currencySymbol = "$",
+  targetCurrency = "USD",
+  exchangeRates = {},
 }) => (
   <Document>
     <Page size="A4" style={styles.page}>
@@ -125,27 +130,36 @@ export const InvoicePDF = ({
         <Text style={styles.cellPrice}>Precio</Text>
         <Text style={styles.cellTotal}>Total</Text>
       </View>
-      {purchasedItems.map((item, i) => (
-        <View key={i} style={styles.tableRow}>
-          <Text style={styles.cellQty}>{item.quantity}</Text>
-          <Text style={styles.cellDesc}>{item.name || item.title}</Text>
-          <Text style={styles.cellPrice}>${Number(item.price).toFixed(2)}</Text>
-          <Text style={styles.cellTotal}>
-            ${(item.price * item.quantity).toFixed(2)}
-          </Text>
-        </View>
-      ))}
+      {purchasedItems.map((item, i) => {
+        const itemBaseCurrency = item.base_currency || "USD";
+        const itemPrice = convertPrice(
+          (Number(item.price) || 0) + (Number(item.price_adjustment) || 0),
+          itemBaseCurrency,
+          targetCurrency,
+          exchangeRates
+        );
+        return (
+          <View key={i} style={styles.tableRow}>
+            <Text style={styles.cellQty}>{item.quantity}</Text>
+            <Text style={styles.cellDesc}>{item.name || item.title}</Text>
+            <Text style={styles.cellPrice}>{currencySymbol}{itemPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+            <Text style={styles.cellTotal}>
+              {currencySymbol}{(itemPrice * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </Text>
+          </View>
+        );
+      })}
 
       {/* Totales */}
       <View style={styles.totalSection}>
         <View style={styles.totalRow}>
-          <Text style={{ fontSize: 10 }}>Subtotal:</Text>
-          <Text style={{ fontSize: 10 }}>${finalTotal.toFixed(2)}</Text>
+          <Text style={{ fontSize: 10 }}>Subtotal (Aprox):</Text>
+          <Text style={{ fontSize: 10 }}>{currencySymbol}{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
         </View>
         <View style={styles.finalTotal}>
-          <Text style={{ fontSize: 10, fontWeight: "bold" }}>TOTAL USD</Text>
+          <Text style={{ fontSize: 10, fontWeight: "bold" }}>TOTAL {targetCurrency}</Text>
           <Text style={{ fontSize: 12, fontWeight: "bold" }}>
-            ${finalTotal.toFixed(2)}
+            {currencySymbol}{finalTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </Text>
         </View>
       </View>

@@ -4,6 +4,9 @@ import AdaptiveImage from "@/components/ui/AdaptiveImage";
 import { motion } from "framer-motion";
 import { Minus, Plus, Trash2, CheckCircle2, Circle } from "lucide-react";
 
+import { convertPrice } from "@/services/exchangeRates";
+import { useSiteConfig } from "@/context/SiteConfigContext";
+
 export default function CartItemCard({
   item,
   onUpdateQuantity,
@@ -11,6 +14,24 @@ export default function CartItemCard({
   isSelected,
   onToggle,
 }) {
+  const { commerce_settings, exchange_rates } = useSiteConfig();
+  const currencySymbol = commerce_settings?.currency_symbol || "$";
+  const targetCurrency = commerce_settings?.currency_code || "USD";
+  const itemBaseCurrency = item.base_currency || "USD";
+
+  const priceConverted = convertPrice(
+    (Number(item.price) || 0) + (Number(item.price_adjustment) || 0),
+    itemBaseCurrency,
+    targetCurrency,
+    exchange_rates
+  );
+  const adjustmentConverted = convertPrice(
+    Number(item.price_adjustment) || 0,
+    itemBaseCurrency,
+    targetCurrency,
+    exchange_rates
+  );
+
   return (
     <motion.div
       layout
@@ -51,12 +72,9 @@ export default function CartItemCard({
             <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
               {item.variant && (
                 <p className="text-[9px] text-honey-dark font-bold uppercase tracking-[0.15em]">
-                  Size: <span className="text-ink">{item.variant}</span>
+                  Variante: <span className="text-ink">{item.variant}</span>
                 </p>
               )}
-              <p className="text-[9px] text-honey-dark font-bold uppercase tracking-[0.15em]">
-                Color: <span className="text-ink">White</span>
-              </p>
             </div>
           </div>
           <button
@@ -70,11 +88,11 @@ export default function CartItemCard({
         <div className="flex justify-between items-end mt-4">
           <div>
             <span className="text-lg font-bold text-ink">
-              ${Number(item.price).toFixed(2)}
+              {currencySymbol}{priceConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </span>
-            {Number(item.price_adjustment) > 0 && (
+            {adjustmentConverted > 0 && (
               <p className="text-[10px] text-amber-700 font-semibold mt-1">
-                +${Number(item.price_adjustment).toFixed(2)} por variante
+                +{currencySymbol}{adjustmentConverted.toLocaleString(undefined, { minimumFractionDigits: 2 })} por variante
               </p>
             )}
           </div>
