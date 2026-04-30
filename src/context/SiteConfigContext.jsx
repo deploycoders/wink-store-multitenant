@@ -62,16 +62,19 @@ export function SiteConfigProvider({
   const fetchConfig = useCallback(async () => {
     try {
       const supabase = createClient();
-      const [data, rates] = await Promise.all([
-        getSiteConfig({ tenantId }),
-        getExchangeRates(supabase),
-      ]);
-      
+
+      // Cargar config en paralelo
+      const data = await getSiteConfig({ tenantId });
+
+      // Cargar tasas de cambio sin bloquear el render
+      // Si ya hay tasas en localStorage/DB, esto será muy rápido
+      const rates = await getExchangeRates(supabase);
+
       setConfig((prev) => ({
         ...data,
         hero_slides: normalizeHeroSlides(data.hero_slides),
         tenant_slug: prev.tenant_slug, // Preservamos el slug que viene de props
-        exchange_rates: rates,
+        exchange_rates: rates || prev.exchange_rates, // Mantener tasas anteriores si falla
         loading: false,
       }));
     } catch (error) {

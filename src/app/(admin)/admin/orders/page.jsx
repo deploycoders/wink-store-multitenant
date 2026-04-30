@@ -12,6 +12,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/auditLog";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import { convertPrice } from "@/services/exchangeRates";
 import Swal from "sweetalert2";
 import { updateOrderStatusAction } from "@/app/actions/admin/orderActions";
 
@@ -22,12 +23,15 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [statusFilter, setStatusFilter] = useState("Todos los estados");
-  const { tenant_id: tenantId } = useSiteConfig();
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const { tenant_id: tenantId, exchange_rates } = useSiteConfig();
   const supabase = createClient();
 
   const toOrderCode = (order) => {
     if (order?.order_number) return String(order.order_number).padStart(5, "0");
-    return String(order?.id || "").slice(-6).toUpperCase();
+    return String(order?.id || "")
+      .slice(-6)
+      .toUpperCase();
   };
   const getErrorMessage = (error) =>
     error?.message || error?.details || "Error desconocido";
@@ -36,9 +40,7 @@ export default function OrdersPage() {
     const embedded = order?.customer || order?.cliente || {};
     return {
       nombre_completo:
-        embedded?.full_name ||
-        order?.customer_name ||
-        "Desconocido",
+        embedded?.full_name || order?.customer_name || "Desconocido",
       telefono: embedded?.phone || order?.customer_phone || "",
       cedula: embedded?.id_number || order?.customer_id_number || "",
       email: embedded?.email || order?.email || "",
@@ -64,7 +66,17 @@ export default function OrdersPage() {
       const { data, error } = await query;
 
       if (!error) {
-        return new Map((data || []).map((row) => [row.id, { ...row, nombre_completo: row.full_name, telefono: row.phone, cedula: row.id_number }]));
+        return new Map(
+          (data || []).map((row) => [
+            row.id,
+            {
+              ...row,
+              nombre_completo: row.full_name,
+              telefono: row.phone,
+              cedula: row.id_number,
+            },
+          ]),
+        );
       }
 
       lastError = error;
@@ -79,7 +91,17 @@ export default function OrdersPage() {
           .select("id, full_name, phone, id_number, email")
           .in("id", ids);
         if (!retry.error) {
-          return new Map((retry.data || []).map((row) => [row.id, { ...row, nombre_completo: row.full_name, telefono: row.phone, cedula: row.id_number }]));
+          return new Map(
+            (retry.data || []).map((row) => [
+              row.id,
+              {
+                ...row,
+                nombre_completo: row.full_name,
+                telefono: row.phone,
+                cedula: row.id_number,
+              },
+            ]),
+          );
         }
         lastError = retry.error;
       }
@@ -113,7 +135,9 @@ export default function OrdersPage() {
 
       const ordersData = data || [];
       const customerIds = [
-        ...new Set(ordersData.map((order) => order.customer_id).filter(Boolean)),
+        ...new Set(
+          ordersData.map((order) => order.customer_id).filter(Boolean),
+        ),
       ];
       const customersById = await loadCustomersByIds(customerIds);
 
@@ -270,13 +294,22 @@ export default function OrdersPage() {
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)} // <--- Actualiza el estado
+          onChange={(e) => setStatusFilter(e.target.value)}
           className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer w-full md:w-auto"
         >
           <option value="Todos los estados">Todos los estados</option>
           <option value="pending">Pendiente</option>
           <option value="paid">Completado</option>
           <option value="cancelled">Cancelado</option>
+        </select>
+        <select
+          value={selectedCurrency}
+          onChange={(e) => setSelectedCurrency(e.target.value)}
+          className="px-4 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white border-none rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer w-full md:w-auto"
+        >
+          <option value="USD">USD</option>
+          <option value="COP">COP</option>
+          <option value="VES">VES</option>
         </select>
       </div>
 
@@ -342,7 +375,24 @@ export default function OrdersPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-white">
-                    ${Number(order.total).toFixed(2)}
+                    {(() => {
+                      switch (selectedCurrency) {
+                        case "VES":
+                          return "Bs ";
+                        case "COP":
+                          return "COP ";
+                        case "USD":
+                          return "$ ";
+                        default:
+                          return `${selectedCurrency} `; // Por si agregas más después
+                      }
+                    })()}
+                    {convertPrice(
+                      Number(order.total),
+                      "USD",
+                      selectedCurrency,
+                      exchange_rates,
+                    ).toFixed(2)}
                   </td>
                   <td className="px-6 py-4">
                     <span
@@ -354,7 +404,11 @@ export default function OrdersPage() {
                             : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                       }`}
                     >
-                      {order.estado === "pending" ? "Pendiente" : order.estado === "paid" ? "Completado" : "Cancelado"}
+                      {order.estado === "pending"
+                        ? "Pendiente"
+                        : order.estado === "paid"
+                          ? "Completado"
+                          : "Cancelado"}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -406,12 +460,23 @@ export default function OrdersPage() {
       {selectedOrder && (
         <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all z-10"
-            >
-              <X size={20} />
-            </button>
+            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 items-center z-10">
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer"
+              >
+                <option value="USD">USD</option>
+                <option value="COP">COP</option>
+                <option value="VES">VES</option>
+              </select>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
             <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900 dark:text-white mb-6">
               Detalles de la Orden{" "}
@@ -430,7 +495,9 @@ export default function OrdersPage() {
                     <span className="font-bold text-slate-900 dark:text-slate-300">
                       Nombre:
                     </span>{" "}
-                    {selectedOrder.clientes?.nombre_completo || selectedOrder.cliente_nombre || "No registrado"}
+                    {selectedOrder.clientes?.nombre_completo ||
+                      selectedOrder.cliente_nombre ||
+                      "No registrado"}
                   </p>
                   <p>
                     <span className="font-bold text-slate-900 dark:text-slate-300">
@@ -444,12 +511,14 @@ export default function OrdersPage() {
                     </span>{" "}
                     {selectedOrder.clientes?.telefono || "No registrado"}
                   </p>
-                  {(selectedOrder.clientes?.email || selectedOrder.customer_email) && (
+                  {(selectedOrder.clientes?.email ||
+                    selectedOrder.customer_email) && (
                     <p>
                       <span className="font-bold text-slate-900 dark:text-slate-300">
                         Email:
                       </span>{" "}
-                      {selectedOrder.clientes?.email || selectedOrder.customer_email}
+                      {selectedOrder.clientes?.email ||
+                        selectedOrder.customer_email}
                     </p>
                   )}
                 </div>
@@ -472,7 +541,24 @@ export default function OrdersPage() {
                     <span className="font-bold text-slate-900 dark:text-slate-300">
                       Total:
                     </span>{" "}
-                    ${Number(selectedOrder.total).toFixed(2)}
+                    {(() => {
+                      switch (selectedCurrency) {
+                        case "VES":
+                          return "Bs ";
+                        case "COP":
+                          return "COP ";
+                        case "USD":
+                          return "$ ";
+                        default:
+                          return `${selectedCurrency} `; // Por si agregas más después
+                      }
+                    })()}
+                    {convertPrice(
+                      Number(selectedOrder.total),
+                      "USD",
+                      selectedCurrency,
+                      exchange_rates,
+                    ).toFixed(2)}
                   </p>
                   <p>
                     <span className="font-bold text-slate-900 dark:text-slate-300">
@@ -487,7 +573,11 @@ export default function OrdersPage() {
                             : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400"
                       }`}
                     >
-                      {selectedOrder.estado === "pending" ? "Pendiente" : selectedOrder.estado === "paid" ? "Completado" : "Cancelado"}
+                      {selectedOrder.estado === "pending"
+                        ? "Pendiente"
+                        : selectedOrder.estado === "paid"
+                          ? "Completado"
+                          : "Cancelado"}
                     </span>
                   </p>
                   {selectedOrder.estado === "cancelled" &&
@@ -526,10 +616,24 @@ export default function OrdersPage() {
                           )}
                         </div>
                         <span className="font-black text-slate-900 dark:text-white">
-                          $
-                          {(Number(item.price) * Number(item.quantity)).toFixed(
-                            2,
-                          )}
+                          {(() => {
+                            switch (selectedCurrency) {
+                              case "VES":
+                                return "Bs ";
+                              case "COP":
+                                return "COP ";
+                              case "USD":
+                                return "$ ";
+                              default:
+                                return `${selectedCurrency} `; // Por si agregas más después
+                            }
+                          })()}
+                          {convertPrice(
+                            Number(item.price) * Number(item.quantity),
+                            "USD",
+                            selectedCurrency,
+                            exchange_rates,
+                          ).toFixed(2)}
                         </span>
                       </li>
                     ))}

@@ -2,55 +2,111 @@ import { createClient } from "@supabase/supabase-js";
 
 const API_KEY = process.env.EXCHANGE_RATE_API_KEY || "8d8eda43d62673bd2fadb0d8";
 const BASE_URL = `https://v6.exchangerate-api.com/v6/${API_KEY}/latest/USD`;
+const CACHE_KEY = "exchange_rates_cache";
+const CACHE_TTL = 12 * 60 * 60 * 1000; // 12 horas en milisegundos
+
+let pendingRequest = null; // Deduplicación de peticiones concurrentes
 
 /**
- * Servicio para gestionar las tasas de cambio con caché en base de datos.
+ * Obtener tasas de cambio con caching multi-nivel:
+ * 1. localStorage (cliente, 12 horas)
+ * 2. Supabase DB (servidor, 12 horas)
+ * 3. API externo (si ambos anteriores expiraron)
  */
 export async function getExchangeRates(supabaseClient) {
   try {
-    // 1. Intentar leer de la caché en DB
+    const now = new Date().getTime();
+
+    // 1. Intentar leer localStorage (más rápido)
+    if (typeof window !== "undefined") {
+      const cached = localStorage.getItem(CACHE_KEY);
+      if (cached) {
+        try {
+          const { rates, timestamp } = JSON.parse(cached);
+          if (now - timestamp < CACHE_TTL) {
+            console.log("[Exchange] ✓ Usando tasas de localStorage");
+            return rates;
+          } else {
+            localStorage.removeItem(CACHE_KEY);
+          }
+        } catch (e) {
+          console.log("[Exchange] localStorage corrupto, ignorando");
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
+    }
+
+    // 2. Si hay petición pendiente, esperar a que termine (deduplicación)
+    if (pendingRequest) {
+      console.log("[Exchange] Esperando petición pendiente...");
+      return await pendingRequest;
+    }
+
+    // 3. Intentar leer de Supabase DB
     const { data: cached, error: dbError } = await supabaseClient
       .from("exchange_rates")
       .select("*")
       .eq("id", "current_rates")
       .maybeSingle();
 
-    const now = new Date();
-
-    // Si tenemos caché y no ha caducado (asumimos 12 horas para ser conservadores)
     if (cached && cached.rates) {
-      const lastUpdate = new Date(cached.last_update);
+      const lastUpdate = new Date(cached.last_update).getTime();
       const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
 
       if (hoursSinceUpdate < 12) {
-        console.log("[Exchange] Usando tasas de la caché.");
+        console.log("[Exchange] ✓ Usando tasas de Supabase DB");
+        // Guardar en localStorage para próxima vez
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            CACHE_KEY,
+            JSON.stringify({ rates: cached.rates, timestamp: now }),
+          );
+        }
         return cached.rates;
       }
     }
 
-    // 2. Si no hay caché o es vieja, pedir al API
-    console.log("[Exchange] Actualizando tasas desde el API...");
-    const response = await fetch(BASE_URL);
-    const data = await response.json();
+    // 4. Si no hay caché o es vieja, pedir al API (con deduplicación)
+    console.log("[Exchange] 🔄 Actualizando tasas desde el API...");
 
-    if (data.result === "success") {
-      const rates = data.conversion_rates;
-      const nextUpdate = data.time_next_update_unix
-        ? new Date(data.time_next_update_unix * 1000)
-        : null;
+    pendingRequest = (async () => {
+      try {
+        const response = await fetch(BASE_URL);
+        const data = await response.json();
 
-      // 3. Guardar en caché (Upsert)
-      await supabaseClient.from("exchange_rates").upsert({
-        id: "current_rates",
-        rates: rates,
-        last_update: now.toISOString(),
-        next_update: nextUpdate ? nextUpdate.toISOString() : null,
-      });
+        if (data.result === "success") {
+          const rates = data.conversion_rates;
+          const nextUpdate = data.time_next_update_unix
+            ? new Date(data.time_next_update_unix * 1000)
+            : null;
 
-      return rates;
-    }
+          // 5. Guardar en Supabase DB
+          await supabaseClient.from("exchange_rates").upsert({
+            id: "current_rates",
+            rates: rates,
+            last_update: new Date().toISOString(),
+            next_update: nextUpdate ? nextUpdate.toISOString() : null,
+          });
 
-    return cached?.rates || null;
+          // 6. Guardar en localStorage
+          if (typeof window !== "undefined") {
+            localStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ rates, timestamp: now }),
+            );
+          }
+
+          console.log("[Exchange] ✓ Tasas actualizadas exitosamente");
+          return rates;
+        }
+
+        return cached?.rates || null;
+      } finally {
+        pendingRequest = null; // Limpiar pendingRequest
+      }
+    })();
+
+    return await pendingRequest;
   } catch (error) {
     console.error("[Exchange] Error obteniendo tasas:", error);
     return null;
@@ -105,7 +161,7 @@ export function convertPrice(amount, baseCurrency = "USD", targetCurrency = "USD
   // Conversión cruzada (ej. de COP a VES)
   const rateFrom = exchangeRates[baseCurrency] || 1;
   const rateTo = exchangeRates[targetCurrency] || 1;
-  
+
   // Llevamos a USD y luego a la moneda destino
   return (amountNum / rateFrom) * rateTo;
 }

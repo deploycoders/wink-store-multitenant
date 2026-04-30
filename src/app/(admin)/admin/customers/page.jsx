@@ -12,13 +12,15 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { formatWhatsappContactNumber } from "@/lib/siteConfig";
 import { useSiteConfig } from "@/context/SiteConfigContext";
+import { convertPrice } from "@/services/exchangeRates";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const { tenant_id: tenantId } = useSiteConfig();
+  const [selectedCurrency, setSelectedCurrency] = useState("USD");
+  const { tenant_id: tenantId, exchange_rates } = useSiteConfig();
   const supabase = createClient();
 
   const getErrorMessage = (error) =>
@@ -312,12 +314,23 @@ export default function CustomersPage() {
       {selectedCustomer && (
         <div className="fixed inset-0 min-h-screen z-150 flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-2 sm:p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-3xl sm:rounded-4xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-y-auto animate-in zoom-in-95 duration-300 p-5 sm:p-10 relative">
-            <button
-              onClick={() => setSelectedCustomer(null)}
-              className="absolute top-4 right-4 sm:top-8 sm:right-8 p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all z-10"
-            >
-              <X size={20} />
-            </button>
+            <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 items-center z-10">
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-slate-900 dark:focus:ring-white outline-none text-xs font-bold uppercase tracking-tighter cursor-pointer"
+              >
+                <option value="USD">USD</option>
+                <option value="COP">COP</option>
+                <option value="VES">VES</option>
+              </select>
+              <button
+                onClick={() => setSelectedCustomer(null)}
+                className="p-2.5 text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl sm:rounded-full transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
             <div className="flex items-center gap-4 mb-8">
               <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-50 dark:border-slate-700/50">
@@ -378,11 +391,29 @@ export default function CustomersPage() {
                       Total Gastado:
                     </span>
                     <span className="ml-2 font-black text-emerald-600 dark:text-emerald-400">
-                      $
-                      {selectedCustomer.orders
-                        ?.filter((o) => o.estado === "paid")
-                        .reduce((sum, o) => sum + Number(o.total || 0), 0)
-                        .toFixed(2)}
+                      {/* Mapeo dinámico de símbolos */}
+                      {(() => {
+                        switch (selectedCurrency) {
+                          case "VES":
+                            return "Bs ";
+                          case "COP":
+                            return "COP ";
+                          case "USD":
+                            return "$ ";
+                          default:
+                            return `${selectedCurrency} `; // Por si agregas más después
+                        }
+                      })()}
+
+                      {convertPrice(
+                        selectedCustomer.orders
+                          ?.filter((o) => o.estado === "paid")
+                          .reduce((sum, o) => sum + Number(o.total || 0), 0) ||
+                          0,
+                        "USD",
+                        selectedCurrency,
+                        exchange_rates,
+                      ).toFixed(2)}
                     </span>
                   </p>
                 </div>
@@ -457,7 +488,24 @@ export default function CustomersPage() {
                               </div>
                             </td>
                             <td className="px-4 py-3 font-bold text-slate-900 dark:text-white text-xs">
-                              ${Number(order.total).toFixed(2)}
+                              {(() => {
+                                switch (selectedCurrency) {
+                                  case "VES":
+                                    return "Bs ";
+                                  case "COP":
+                                    return "COP ";
+                                  case "USD":
+                                    return "$ ";
+                                  default:
+                                    return `${selectedCurrency} `; // Por si agregas más después
+                                }
+                              })()}
+                              {convertPrice(
+                                Number(order.total),
+                                "USD",
+                                selectedCurrency,
+                                exchange_rates,
+                              ).toFixed(2)}
                             </td>
                             <td className="px-4 py-3">
                               <span
